@@ -30,7 +30,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--color-kiln)" }}>
       <form
         onSubmit={handleSubmit}
-        className="bg-black p-8 rounded-xl grout-border w-full max-w-sm space-y-4"
+       className="bg-white p-8 rounded-xl grout-border w-full max-w-sm space-y-4"
       >
         <div>
           <h1 className="font-[family-name:var(--font-display)]  text-2xl italic" style={{ color: "var(--color-glaze-deep)" }}>
@@ -44,8 +44,8 @@ export default function LoginPage() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-md px-3 py-2 text-sm grout-border outline-none focus:ring-2 text-white"
-          style={{ ["--tw-ring-color" as any]: "var(--color-glaze)" }} 
+          className="w-full rounded-md px-3 py-2 text-sm grout-border outline-none focus:ring-2"
+          style={{ ["--tw-ring-color" as any]: "var(--color-glaze)" }}
           required
         />
         <input
@@ -53,7 +53,7 @@ export default function LoginPage() {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-md px-3 py-2 text-sm grout-border outline-none focus:ring-2 text-white"
+          className="w-full rounded-md px-3 py-2 text-sm grout-border outline-none focus:ring-2"
           style={{ ["--tw-ring-color" as any]: "var(--color-glaze)" }}
           required
         />

@@ -28,6 +28,7 @@ type Product struct {
 	PiecesPerBox int       `db:"pieces_per_box" json:"pieces_per_box"`
 	SqftPerBox   *float64  `db:"sqft_per_box" json:"sqft_per_box"`
 	ReorderLevel int       `db:"reorder_level" json:"reorder_level"`
+	PricePerBox  float64   `db:"price_per_box" json:"price_per_box"`
 	ImageURL     *string   `db:"image_url" json:"image_url"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 }
@@ -61,5 +62,7 @@ type CurrentStock struct {
 	Size         string  `db:"size" json:"size"`
 	Finish       *string `db:"finish" json:"finish"`
 	ReorderLevel int     `db:"reorder_level" json:"reorder_level"`
+	PricePerBox  float64 `db:"price_per_box" json:"price_per_box"`
 	BoxesInStock float64 `db:"boxes_in_stock" json:"boxes_in_stock"`
+	StockValue   float64 `db:"stock_value" json:"stock_value"`
 }

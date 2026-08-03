@@ -31,7 +31,7 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--color-kiln)" }}>
       <form
         onSubmit={handleSubmit}
-        className="bg-black p-8 rounded-xl grout-border w-full max-w-sm space-y-4"
+        className="bg-white p-8 rounded-xl grout-border w-full max-w-sm space-y-4"
       >
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-2xl italic" style={{ color: "var(--color-glaze-deep)" }}>

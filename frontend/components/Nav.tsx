@@ -1,18 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { LayoutDashboard, Package, ArrowLeftRight, LogOut, Menu, X } from "lucide-react";
 import { clearToken } from "@/lib/api";
 
 const links = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/products", label: "Products" },
-  { href: "/stock/move", label: "Stock In / Out" },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/products", label: "Products", icon: Package },
+  { href: "/stock/move", label: "Stock In / Out", icon: ArrowLeftRight },
 ];
 
 export default function Nav() {
   const router = useRouter();
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
 
   function logout() {
     clearToken();
@@ -20,43 +23,89 @@ export default function Nav() {
   }
 
   return (
-    <nav className="bg-white border-b" style={{ borderColor: "var(--color-grout)" }}>
-      <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+    <nav className="bg-white border-b sticky top-0 z-20" style={{ borderColor: "var(--color-grout)" }}>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <span
-            className="font-[family-name:var(--font-display)] text-[15px] tracking-tight"
+            className="font-[family-name:var(--font-display)] text-[15px] tracking-tight italic"
             style={{ color: "var(--color-glaze-deep)" }}
           >
             Tiles Stock
           </span>
-          <div className="flex gap-1 text-sm">
+          <div className="hidden sm:flex gap-1 text-sm">
             {links.map((l) => {
               const active = pathname === l.href;
+              const Icon = l.icon;
               return (
                 <Link
                   key={l.href}
                   href={l.href}
-                  className="px-3 py-1.5 rounded-md transition-colors"
+                  className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5"
                   style={
                     active
                       ? { background: "var(--color-glaze-tint)", color: "var(--color-glaze-deep)", fontWeight: 500 }
                       : { color: "var(--color-ink-soft)" }
                   }
                 >
+                  <Icon size={15} strokeWidth={2} />
                   {l.label}
                 </Link>
               );
             })}
           </div>
         </div>
+
         <button
           onClick={logout}
-          className="text-sm px-3 py-1.5 rounded-md transition-colors hover:bg-[var(--color-kiln-dim)]"
+          className="hidden sm:flex text-sm px-3 py-1.5 rounded-md transition-colors hover:bg-[var(--color-kiln-dim)] items-center gap-1.5"
           style={{ color: "var(--color-ink-soft)" }}
         >
+          <LogOut size={15} />
           Log out
         </button>
+
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="sm:hidden p-2 rounded-md"
+          style={{ color: "var(--color-ink-soft)" }}
+          aria-label="Toggle menu"
+        >
+          {open ? <X size={20} /> : <Menu size={20} />}
+        </button>
       </div>
+
+      {open && (
+        <div className="sm:hidden border-t px-4 py-2 space-y-1" style={{ borderColor: "var(--color-grout)" }}>
+          {links.map((l) => {
+            const active = pathname === l.href;
+            const Icon = l.icon;
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className="px-3 py-2 rounded-md flex items-center gap-2 text-sm"
+                style={
+                  active
+                    ? { background: "var(--color-glaze-tint)", color: "var(--color-glaze-deep)", fontWeight: 500 }
+                    : { color: "var(--color-ink-soft)" }
+                }
+              >
+                <Icon size={16} />
+                {l.label}
+              </Link>
+            );
+          })}
+          <button
+            onClick={logout}
+            className="px-3 py-2 rounded-md flex items-center gap-2 text-sm w-full text-left"
+            style={{ color: "var(--color-ink-soft)" }}
+          >
+            <LogOut size={16} />
+            Log out
+          </button>
+        </div>
+      )}
     </nav>
   );
 }

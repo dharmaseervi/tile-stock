@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowDownToLine, ArrowUpFromLine, CheckCircle2, AlertCircle } from "lucide-react";
 import { api, isLoggedIn } from "@/lib/api";
 import Nav from "@/components/Nav";
 import { shadeColor } from "@/lib/shade";
@@ -79,24 +80,36 @@ export default function StockMovePage() {
           Stock In / Out
         </h1>
         <form onSubmit={handleSubmit} className="bg-white rounded-lg grout-border p-5 space-y-4">
-          {error && <p className="text-sm" style={{ color: "var(--color-oxide)" }}>{error}</p>}
-          {message && <p className="text-sm" style={{ color: "var(--color-moss)" }}>{message}</p>}
+          {error && (
+            <p className="text-sm flex items-center gap-1.5" style={{ color: "var(--color-oxide)" }}>
+              <AlertCircle size={15} />
+              {error}
+            </p>
+          )}
+          {message && (
+            <p className="text-sm flex items-center gap-1.5" style={{ color: "var(--color-moss)" }}>
+              <CheckCircle2 size={15} />
+              {message}
+            </p>
+          )}
 
           <div className="flex gap-2 p-1 rounded-md" style={{ background: "var(--color-kiln-dim)" }}>
             <button
               type="button"
               onClick={() => setMovementType("in")}
-              className="flex-1 py-2 rounded text-sm font-medium transition-colors"
+              className="flex-1 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
               style={isIn ? { background: "var(--color-moss)", color: "white" } : { color: "var(--color-ink-soft)" }}
             >
+              <ArrowDownToLine size={14} />
               Stock In
             </button>
             <button
               type="button"
               onClick={() => setMovementType("out")}
-              className="flex-1 py-2 rounded text-sm font-medium transition-colors"
+              className="flex-1 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
               style={!isIn ? { background: "var(--color-oxide)", color: "white" } : { color: "var(--color-ink-soft)" }}
             >
+              <ArrowUpFromLine size={14} />
               Stock Out
             </button>
           </div>
