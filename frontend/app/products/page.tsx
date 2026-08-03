@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ImageOff, Package, Search } from "lucide-react";
+import { Plus, Trash2, ImageOff, Package, Search, X } from "lucide-react";
 import { api, isLoggedIn } from "@/lib/api";
 import { uploadProductPhoto } from "@/lib/supabase";
 import { TILE_SIZES, calcSqftPerBox } from "@/lib/tileSizes";
@@ -39,6 +39,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; label: string } | null>(null);
   const [form, setForm] = useState({
     brand: "",
     series_name: "",
@@ -191,6 +192,29 @@ export default function ProductsPage() {
           </button>
         </div>
 
+        {lightboxImage && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-6"
+            style={{ background: "rgba(30, 36, 34, 0.85)" }}
+            onClick={() => setLightboxImage(null)}
+          >
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute top-5 right-5 p-2 rounded-full text-white hover:bg-white/10 transition-colors"
+              aria-label="Close"
+            >
+              <X size={22} />
+            </button>
+            <div className="flex flex-col items-center gap-3 max-w-lg" onClick={(e) => e.stopPropagation()}>
+              <img
+                src={lightboxImage.url}
+                alt={lightboxImage.label}
+                className="max-h-[75vh] max-w-full rounded-lg object-contain"
+              />
+              <p className="text-sm text-white/90">{lightboxImage.label}</p>
+            </div>
+          </div>
+        )}
         {showForm && (
           <form onSubmit={handleAdd} className="bg-white rounded-lg grout-border p-4 grid grid-cols-2 gap-3">
             {error && <p className="col-span-2 text-sm" style={{ color: "var(--color-oxide)" }}>{error}</p>}
@@ -370,7 +394,16 @@ export default function ProductsPage() {
                 <tr key={p.id} className="hover:bg-[var(--color-kiln-dim)] transition-colors group">
                   <td className="px-4 py-2.5">
                     {p.image_url ? (
-                      <img src={p.image_url} alt={p.series_name} className="w-9 h-9 object-cover rounded" />
+                      <button
+                        onClick={() => setLightboxImage({ url: p.image_url!, label: `${p.brand} — ${p.series_name}` })}
+                        className="block"
+                      >
+                        <img
+                          src={p.image_url}
+                          alt={p.series_name}
+                          className="w-9 h-9 object-cover rounded cursor-pointer transition-transform hover:scale-110"
+                        />
+                      </button>
                     ) : (
                       <div className="w-9 h-9 rounded flex items-center justify-center" style={{ background: "var(--color-kiln-dim)" }}>
                         <ImageOff size={14} style={{ color: "var(--color-ink-soft)" }} />
