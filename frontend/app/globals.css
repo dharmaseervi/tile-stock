@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root {
+  /* Kiln white — cool porcelain background, not warm cream */
+  --color-scheme: light;
+  --color-kiln-dim: #eff1ec;
+
+  /* Ink — grout-dark, not pure black */
+  --color-ink: #1e2422;
+  --color-ink-soft: #52605b;
+
+  /* Grout lines */
+  --color-grout: #dcdfd9;
+  --color-grout-strong: #c4c9c0;
+
+  /* Kashi teal — glazed ceramic blue-green, primary brand/action color */
+  --color-glaze: #1f6f6b;
+  --color-glaze-deep: #164f4c;
+  --color-glaze-tint: #e4f0ee;
+
+  /* Moss — stock IN */
+  --color-moss: #3f7248;
+  --color-moss-tint: #e7f0e5;
+
+  /* Oxide — stock OUT */
+  --color-oxide: #a6432e;
+  --color-oxide-tint: #f7e9e4;
+
+  /* Kiln ochre — low-stock alert */
+  --color-ochre: #b4821e;
+  --color-ochre-tint: #faf0da;
+}
+
+@theme inline {
+  --color-background: var(--color-kiln);
+  --color-foreground: var(--color-ink);
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-plex-mono);
+}
+
+body {
+  background: var(--color-kiln);
+  color: var(--color-ink);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Grout-line hairlines: the tile-grout motif used for table/card dividers */
+.grout-divide > * + * {
+  border-top: 1px solid var(--color-grout);
+}
+
+.grout-border {
+  border: 1px solid var(--color-grout);
+}
+
+/* Deterministic shade-swatch: a small colored square derived from a lot
+   number string, so each batch/lot gets a consistent visual identity —
+   echoes the real-world tile shade-matching problem this app tracks. */
+.shade-swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
