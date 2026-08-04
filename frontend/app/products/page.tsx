@@ -8,6 +8,8 @@ import { uploadProductPhoto } from "@/lib/supabase";
 import { TILE_SIZES, calcSqftPerBox } from "@/lib/tileSizes";
 import Nav from "@/components/Nav";
 
+// Common Indian tile brands and finishes, offered as suggestions — not a
+// strict list, since dealers may carry brands/finishes not shown here.
 const COMMON_BRANDS = [
   "Kajaria", "Somany", "Johnson", "Nitco", "Orient Bell",
   "Simpolo", "Asian Granito", "RAK Ceramics", "Varmora", "Cera",
@@ -39,7 +41,6 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [lightboxImage, setLightboxImage] = useState<{ url: string; label: string } | null>(null);
   const [form, setForm] = useState({
     brand: "",
     series_name: "",
@@ -59,6 +60,7 @@ export default function ProductsPage() {
   const [activeFinish, setActiveFinish] = useState<string | null>(null);
   const [activeBrand, setActiveBrand] = useState<string | null>(null);
   const [activeSize, setActiveSize] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; label: string } | null>(null);
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] || null;
@@ -76,12 +78,16 @@ export default function ProductsPage() {
     setIsCustomSize(false);
     const preset = TILE_SIZES.find((s) => s.label === label);
     if (!preset || preset.sqftPerPiece === null) return;
+    // Store size as "LxW" (mm) for consistency with the rest of the app,
+    // derived from the label (e.g. "600 x 1200 mm" -> "600x1200").
     const sizeValue = label.replace(/\s*mm$/, "").replace(/\s*x\s*/, "x");
     const sqft = calcSqftPerBox(preset.sqftPerPiece, form.pieces_per_box || 1);
     setForm({ ...form, size: sizeValue, sqft_per_box: String(sqft) });
   }
 
   function handlePiecesPerBoxChange(value: number) {
+    // Re-derive sq.ft/box whenever pieces-per-box changes, as long as the
+    // current size matches a known preset (not a custom free-text size).
     const currentLabel = `${form.size.replace("x", " x ")} mm`;
     const preset = TILE_SIZES.find((s) => s.label === currentLabel);
     if (preset && preset.sqftPerPiece !== null) {
@@ -96,6 +102,8 @@ export default function ProductsPage() {
     api.listProducts().then((p) => setProducts(p ?? [])).finally(() => setLoading(false));
   }
 
+  // Brands already used in this org's products, merged with the common list —
+  // so the suggestion list gets better tailored to this dealer over time.
   const brandSuggestions = Array.from(new Set([...products.map((p) => p.brand), ...COMMON_BRANDS])).sort();
 
   const filteredProducts = products.filter((p) => {
@@ -112,6 +120,7 @@ export default function ProductsPage() {
     return matchesSearch && matchesFinish && matchesBrand && matchesSize;
   });
 
+  // Only show pills for values actually present in this dealer's products.
   const finishPills = Array.from(new Set(products.map((p) => p.finish).filter(Boolean))) as string[];
   const brandPills = Array.from(new Set(products.map((p) => p.brand))).sort();
   const sizePills = Array.from(new Set(products.map((p) => p.size))).sort();
@@ -192,29 +201,6 @@ export default function ProductsPage() {
           </button>
         </div>
 
-        {lightboxImage && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-6"
-            style={{ background: "rgba(30, 36, 34, 0.85)" }}
-            onClick={() => setLightboxImage(null)}
-          >
-            <button
-              onClick={() => setLightboxImage(null)}
-              className="absolute top-5 right-5 p-2 rounded-full text-white hover:bg-white/10 transition-colors"
-              aria-label="Close"
-            >
-              <X size={22} />
-            </button>
-            <div className="flex flex-col items-center gap-3 max-w-lg" onClick={(e) => e.stopPropagation()}>
-              <img
-                src={lightboxImage.url}
-                alt={lightboxImage.label}
-                className="max-h-[75vh] max-w-full rounded-lg object-contain"
-              />
-              <p className="text-sm text-white/90">{lightboxImage.label}</p>
-            </div>
-          </div>
-        )}
         {showForm && (
           <form onSubmit={handleAdd} className="bg-white rounded-lg grout-border p-4 grid grid-cols-2 gap-3">
             {error && <p className="col-span-2 text-sm" style={{ color: "var(--color-oxide)" }}>{error}</p>}
@@ -391,11 +377,18 @@ export default function ProductsPage() {
             </thead>
             <tbody className="grout-divide">
               {filteredProducts.map((p) => (
-                <tr key={p.id} className="hover:bg-[var(--color-kiln-dim)] transition-colors group">
+                <tr
+                  key={p.id}
+                  className="hover:bg-[var(--color-kiln-dim)] transition-colors group cursor-pointer"
+                  onClick={() => router.push(`/products/${p.id}`)}
+                >
                   <td className="px-4 py-2.5">
                     {p.image_url ? (
                       <button
-                        onClick={() => setLightboxImage({ url: p.image_url!, label: `${p.brand} — ${p.series_name}` })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLightboxImage({ url: p.image_url!, label: `${p.brand} — ${p.series_name}` });
+                        }}
                         className="block"
                       >
                         <img
@@ -420,7 +413,10 @@ export default function ProductsPage() {
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <button
-                      onClick={() => handleDelete(p.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(p.id);
+                      }}
                       className="p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--color-oxide-tint)]"
                       style={{ color: "var(--color-oxide)" }}
                       aria-label="Delete product"
@@ -449,6 +445,30 @@ export default function ProductsPage() {
             </tbody>
           </table>
         </div>
+
+        {lightboxImage && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-6"
+            style={{ background: "rgba(30, 36, 34, 0.85)" }}
+            onClick={() => setLightboxImage(null)}
+          >
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute top-5 right-5 p-2 rounded-full text-white hover:bg-white/10 transition-colors"
+              aria-label="Close"
+            >
+              <X size={22} />
+            </button>
+            <div className="flex flex-col items-center gap-3 max-w-lg" onClick={(e) => e.stopPropagation()}>
+              <img
+                src={lightboxImage.url}
+                alt={lightboxImage.label}
+                className="max-h-[75vh] max-w-full rounded-lg object-contain"
+              />
+              <p className="text-sm text-white/90">{lightboxImage.label}</p>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

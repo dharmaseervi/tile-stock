@@ -3,13 +3,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Package, ArrowLeftRight, LogOut, Menu, X } from "lucide-react";
+import {
+  LayoutDashboard, Package, ArrowLeftRight, LogOut, Menu, X,
+  BarChart2, FileText, Users, RefreshCw, Settings,
+} from "lucide-react";
 import { clearToken } from "@/lib/api";
 
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/products", label: "Products", icon: Package },
   { href: "/stock/move", label: "Stock In / Out", icon: ArrowLeftRight },
+  { href: "/orders", label: "Challans", icon: FileText },
+  { href: "/customers", label: "Customers", icon: Users },
+  { href: "/analytics", label: "Analytics", icon: BarChart2 },
+  { href: "/reorder", label: "Reorder", icon: RefreshCw },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export default function Nav() {
@@ -24,30 +32,30 @@ export default function Nav() {
 
   return (
     <nav className="bg-white border-b sticky top-0 z-20" style={{ borderColor: "var(--color-grout)" }}>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="flex items-center gap-6">
           <span
-            className="font-[family-name:var(--font-display)] text-[15px] tracking-tight italic"
+            className="font-[family-name:var(--font-display)] text-[15px] tracking-tight italic shrink-0"
             style={{ color: "var(--color-glaze-deep)" }}
           >
             Tiles Stock
           </span>
-          <div className="hidden sm:flex gap-1 text-sm">
+          <div className="hidden lg:flex gap-1 text-sm">
             {links.map((l) => {
-              const active = pathname === l.href;
+              const active = pathname === l.href || pathname.startsWith(l.href + "/");
               const Icon = l.icon;
               return (
                 <Link
                   key={l.href}
                   href={l.href}
-                  className="px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5"
+                  className="px-2.5 py-1.5 rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap"
                   style={
                     active
                       ? { background: "var(--color-glaze-tint)", color: "var(--color-glaze-deep)", fontWeight: 500 }
                       : { color: "var(--color-ink-soft)" }
                   }
                 >
-                  <Icon size={15} strokeWidth={2} />
+                  <Icon size={14} strokeWidth={2} />
                   {l.label}
                 </Link>
               );
@@ -57,16 +65,16 @@ export default function Nav() {
 
         <button
           onClick={logout}
-          className="hidden sm:flex text-sm px-3 py-1.5 rounded-md transition-colors hover:bg-[var(--color-kiln-dim)] items-center gap-1.5"
+          className="hidden lg:flex text-sm px-3 py-1.5 rounded-md transition-colors hover:bg-[var(--color-kiln-dim)] items-center gap-1.5 shrink-0"
           style={{ color: "var(--color-ink-soft)" }}
         >
-          <LogOut size={15} />
+          <LogOut size={14} />
           Log out
         </button>
 
         <button
           onClick={() => setOpen((o) => !o)}
-          className="sm:hidden p-2 rounded-md"
+          className="lg:hidden p-2 rounded-md"
           style={{ color: "var(--color-ink-soft)" }}
           aria-label="Toggle menu"
         >
@@ -75,9 +83,9 @@ export default function Nav() {
       </div>
 
       {open && (
-        <div className="sm:hidden border-t px-4 py-2 space-y-1" style={{ borderColor: "var(--color-grout)" }}>
+        <div className="lg:hidden border-t px-4 py-2 space-y-1" style={{ borderColor: "var(--color-grout)" }}>
           {links.map((l) => {
-            const active = pathname === l.href;
+            const active = pathname === l.href || pathname.startsWith(l.href + "/");
             const Icon = l.icon;
             return (
               <Link

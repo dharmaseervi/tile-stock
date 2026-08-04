@@ -48,8 +48,8 @@ func (h *BatchHandler) Create(c *gin.Context) {
 
 func (h *BatchHandler) ListForProduct(c *gin.Context) {
 	orgID := c.GetString("org_id")
-	productID := c.Param("product_id")
-	batches := []models.Batch{}
+	productID := c.Param("id")
+	var batches []models.Batch
 	err := h.DB.Select(&batches,
 		`SELECT * FROM batches WHERE org_id=$1 AND product_id=$2 ORDER BY created_at DESC`,
 		orgID, productID,

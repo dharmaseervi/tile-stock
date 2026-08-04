@@ -49,7 +49,10 @@ func (h *ProductHandler) Create(c *gin.Context) {
 func (h *ProductHandler) List(c *gin.Context) {
 	orgID := c.GetString("org_id")
 	var products []models.Product
-	err := h.DB.Select(&products, `SELECT * FROM products WHERE org_id=$1 ORDER BY brand, series_name`, orgID)
+	err := h.DB.Select(&products, `
+    SELECT id, org_id, brand, series_name, size, finish, hsn_code,
+           pieces_per_box, sqft_per_box, reorder_level, price_per_box, image_url, created_at
+    FROM products WHERE org_id=$1 ORDER BY brand, series_name`, orgID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch products"})
 		return
@@ -66,4 +69,53 @@ func (h *ProductHandler) Delete(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func (h *ProductHandler) GetOne(c *gin.Context) {
+	orgID := c.GetString("org_id")
+	id := c.Param("id")
+	var product models.Product
+	err := h.DB.Get(&product,
+		`SELECT id, org_id, brand, series_name, size, finish, hsn_code,
+            pieces_per_box, sqft_per_box, reorder_level, price_per_box, image_url, created_at
+     FROM products WHERE id=$1 AND org_id=$2`, id, orgID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
+		return
+	}
+
+	var current models.CurrentStock
+	_ = h.DB.Get(&current, `SELECT * FROM current_stock WHERE product_id=$1 AND org_id=$2`, id, orgID)
+
+	c.JSON(http.StatusOK, gin.H{"product": product, "stock": current})
+}
+
+func (h *ProductHandler) Update(c *gin.Context) {
+	orgID := c.GetString("org_id")
+	id := c.Param("id")
+	var req productReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	res, err := h.DB.Exec(
+		`UPDATE products SET brand=$1, series_name=$2, size=$3, finish=$4, hsn_code=$5,
+		 pieces_per_box=$6, sqft_per_box=$7, reorder_level=$8, price_per_box=$9,
+		 image_url=COALESCE(NULLIF($10,''), image_url)
+		 WHERE id=$11 AND org_id=$12`,
+		req.Brand, req.SeriesName, req.Size, req.Finish, req.HSNCode,
+		req.PiecesPerBox, req.SqftPerBox, req.ReorderLevel, req.PricePerBox,
+		req.ImageURL, id, orgID,
+	)
+	if err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "update failed — duplicate brand/series/size/finish?"})
+		return
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": id})
 }

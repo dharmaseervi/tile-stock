@@ -47,6 +47,7 @@ type StockMovement struct {
 	OrgID        string    `db:"org_id" json:"org_id"`
 	ProductID    string    `db:"product_id" json:"product_id"`
 	BatchID      *string   `db:"batch_id" json:"batch_id"`
+	BranchID     *string   `db:"branch_id" json:"branch_id"`
 	MovementType string    `db:"movement_type" json:"movement_type"` // in | out
 	Boxes        float64   `db:"boxes" json:"boxes"`
 	Reference    *string   `db:"reference" json:"reference"`

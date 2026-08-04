@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Boxes, AlertTriangle, Package, Plus, IndianRupee } from "lucide-react";
+import { Boxes, AlertTriangle, Package, Plus, IndianRupee, Download } from "lucide-react";
 import Link from "next/link";
-import { api, isLoggedIn } from "@/lib/api";
-import Nav from "@/components/Nav";
+import { api, isLoggedIn } from "@/lib/api";import Nav from "@/components/Nav";
 
 type StockRow = {
   product_id: string;
@@ -80,9 +79,20 @@ export default function DashboardPage() {
     <div className="min-h-screen" style={{ background: "var(--color-kiln)" }}>
       <Nav />
       <main className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6 sm:space-y-8">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl" style={{ color: "var(--color-ink)" }}>
-          Dashboard
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="font-[family-name:var(--font-display)] text-2xl" style={{ color: "var(--color-ink)" }}>
+            Dashboard
+          </h1>
+          {!loading && stock.length > 0 && (
+            <button
+              onClick={() => api.downloadStockPDF()}
+              className="text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-md grout-border"
+              style={{ color: "var(--color-glaze-deep)" }}
+            >
+              <Download size={14} /> Stock Report
+            </button>
+          )}
+        </div>
 
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
