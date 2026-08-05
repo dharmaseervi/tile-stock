@@ -23,19 +23,17 @@ async function request(path: string, options: RequestInit = {}) {
 }
 
 export const api = {
-  // PDF downloads (direct browser download — not JSON)
+  // PDF downloads
   downloadOrderPDF: (id: string) => {
     const token = getToken();
     const url = `${API_URL}/orders/${id}/pdf`;
-    const a = document.createElement("a");
-    a.href = url;
-    a.setAttribute("download", "");
-    // Use fetch to include auth header then trigger download
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.blob())
       .then((blob) => {
         const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
         a.href = blobUrl;
+        a.download = `challan-${id}.pdf`;
         a.click();
         URL.revokeObjectURL(blobUrl);
       });
@@ -78,11 +76,40 @@ export const api = {
   // Stock
   currentStock: () => request("/stock/current"),
   lowStock: () => request("/stock/low"),
-  history: (productId?: string) =>
-    request(`/stock/history${productId ? `?product_id=${productId}` : ""}`),
+  history: (productId?: string, from?: string, to?: string) => {
+    const params = new URLSearchParams();
+    if (productId) params.set("product_id", productId);
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    return request(`/stock/history?${params}`);
+  },
+  dashboardStats: (from?: string, to?: string) => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    return request(`/stock/dashboard-stats?${params}`);
+  },
   analytics: () => request("/stock/analytics"),
   recordMovement: (data: any) =>
     request("/stock/movements", { method: "POST", body: JSON.stringify(data) }),
+  exportCSV: (from?: string, to?: string) => {
+    const token = getToken();
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const url = `${API_URL}/stock/export.csv?${params}`;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.blob())
+      .then((blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `stock-movements-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+      });
+  },
+  activityLog: () => request("/activity"),
 
   // Branches
   listBranches: () => request("/branches"),
@@ -126,7 +153,7 @@ export const api = {
   getSubscription: () => request("/subscription"),
   reorderSuggestions: () => request("/reorder/suggestions"),
 
-  // Public
+  // Public price list
   getPublicPriceList: (orgId: string) =>
     request(`/public/${orgId}/products`),
 };
