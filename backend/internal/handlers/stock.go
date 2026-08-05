@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"encoding/csv"
+	"fmt"
 	"net/http"
+	"time"
 
 	"tiles-stock/internal/models"
 
@@ -15,13 +18,12 @@ type StockHandler struct{ DB *sqlx.DB }
 type movementReq struct {
 	ProductID    string  `json:"product_id" binding:"required"`
 	BatchID      string  `json:"batch_id"`
-	MovementType string  `json:"movement_type" binding:"required,oneof=in out"`
+	MovementType string  `json:"movement_type" binding:"required,oneof=in out adjustment damage"`
 	Boxes        float64 `json:"boxes" binding:"required,gt=0"`
 	Reference    string  `json:"reference"`
+	Reason       string  `json:"reason"`
 }
 
-// RecordMovement handles both stock-in and stock-out. For 'out' movements,
-// we check current stock first so we never let boxes go negative.
 func (h *StockHandler) RecordMovement(c *gin.Context) {
 	orgID := c.GetString("org_id")
 	userID := c.GetString("user_id")
@@ -31,7 +33,8 @@ func (h *StockHandler) RecordMovement(c *gin.Context) {
 		return
 	}
 
-	if req.MovementType == "out" {
+	// For out/adjustment/damage: check stock won't go negative
+	if req.MovementType != "in" {
 		var current float64
 		err := h.DB.Get(&current,
 			`SELECT COALESCE(SUM(CASE WHEN movement_type='in' THEN boxes ELSE -boxes END),0)
@@ -54,9 +57,11 @@ func (h *StockHandler) RecordMovement(c *gin.Context) {
 		batchID = req.BatchID
 	}
 	_, err := h.DB.Exec(
-		`INSERT INTO stock_movements (id, org_id, product_id, batch_id, movement_type, boxes, reference, created_by)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-		id, orgID, req.ProductID, batchID, req.MovementType, req.Boxes, req.Reference, userID,
+		`INSERT INTO stock_movements
+		 (id, org_id, product_id, batch_id, movement_type, boxes, reference, reason, created_by)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		id, orgID, req.ProductID, batchID, req.MovementType,
+		req.Boxes, req.Reference, req.Reason, userID,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to record movement"})
@@ -68,10 +73,14 @@ func (h *StockHandler) RecordMovement(c *gin.Context) {
 func (h *StockHandler) CurrentStock(c *gin.Context) {
 	orgID := c.GetString("org_id")
 	var stock []models.CurrentStock
-	err := h.DB.Select(&stock, `SELECT * FROM current_stock WHERE org_id=$1 ORDER BY brand, series_name`, orgID)
+	err := h.DB.Select(&stock,
+		`SELECT * FROM current_stock WHERE org_id=$1 ORDER BY brand, series_name`, orgID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch stock"})
 		return
+	}
+	if stock == nil {
+		stock = []models.CurrentStock{}
 	}
 	c.JSON(http.StatusOK, stock)
 }
@@ -87,30 +96,202 @@ func (h *StockHandler) LowStock(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch low stock"})
 		return
 	}
+	if stock == nil {
+		stock = []models.CurrentStock{}
+	}
 	c.JSON(http.StatusOK, stock)
 }
 
 func (h *StockHandler) History(c *gin.Context) {
 	orgID := c.GetString("org_id")
 	productID := c.Query("product_id")
-	var movements []models.StockMovement
-	var err error
+	dateFrom := c.Query("from")
+	dateTo := c.Query("to")
+
+	query := `
+		SELECT id, org_id, product_id, batch_id, movement_type, boxes, reference, reason, created_by, created_at
+		FROM stock_movements
+		WHERE org_id=$1`
+	args := []interface{}{orgID}
+	argIdx := 2
+
 	if productID != "" {
-		err = h.DB.Select(&movements,
-			`SELECT * FROM stock_movements WHERE org_id=$1 AND product_id=$2 ORDER BY created_at DESC LIMIT 200`,
-			orgID, productID,
-		)
-	} else {
-		err = h.DB.Select(&movements,
-			`SELECT * FROM stock_movements WHERE org_id=$1 ORDER BY created_at DESC LIMIT 200`,
-			orgID,
-		)
+		query += fmt.Sprintf(" AND product_id=$%d", argIdx)
+		args = append(args, productID)
+		argIdx++
 	}
+	if dateFrom != "" {
+		query += fmt.Sprintf(" AND created_at >= $%d", argIdx)
+		args = append(args, dateFrom)
+		argIdx++
+	}
+	if dateTo != "" {
+		query += fmt.Sprintf(" AND created_at < $%d", argIdx)
+		args = append(args, dateTo)
+		argIdx++
+	}
+	query += " ORDER BY created_at DESC LIMIT 500"
+
+	var movements []models.StockMovement
+	err := h.DB.Select(&movements, query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch history"})
 		return
 	}
+	if movements == nil {
+		movements = []models.StockMovement{}
+	}
 	c.JSON(http.StatusOK, movements)
+}
+
+// ExportCSV streams a CSV of all movements for the requested date range
+func (h *StockHandler) ExportCSV(c *gin.Context) {
+	orgID := c.GetString("org_id")
+	dateFrom := c.Query("from")
+	dateTo := c.Query("to")
+
+	query := `
+		SELECT
+			m.created_at::text,
+			m.movement_type,
+			p.brand,
+			p.series_name,
+			p.size,
+			p.finish,
+			m.boxes,
+			m.reference,
+			m.reason,
+			u.email AS user_email
+		FROM stock_movements m
+		JOIN products p ON p.id = m.product_id
+		LEFT JOIN users u ON u.id = m.created_by
+		WHERE m.org_id=$1`
+	args := []interface{}{orgID}
+	argIdx := 2
+
+	if dateFrom != "" {
+		query += fmt.Sprintf(" AND m.created_at >= $%d", argIdx)
+		args = append(args, dateFrom)
+		argIdx++
+	}
+	if dateTo != "" {
+		query += fmt.Sprintf(" AND m.created_at < $%d", argIdx)
+		args = append(args, dateTo)
+		argIdx++
+	}
+	query += " ORDER BY m.created_at DESC"
+
+	rows, err := h.DB.Query(query, args...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "export failed"})
+		return
+	}
+	defer rows.Close()
+
+	filename := fmt.Sprintf("stock-movements-%s.csv", time.Now().Format("2006-01-02"))
+	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+
+	w := csv.NewWriter(c.Writer)
+	w.Write([]string{"Date", "Type", "Brand", "Series", "Size", "Finish", "Boxes", "Reference", "Reason", "User"})
+
+	for rows.Next() {
+		var (
+			createdAt, movType, brand, seriesName, size string
+			finish, reference, reason, userEmail        *string
+			boxes                                       float64
+		)
+		rows.Scan(&createdAt, &movType, &brand, &seriesName, &size,
+			&finish, &boxes, &reference, &reason, &userEmail)
+		row := []string{
+			createdAt, movType, brand, seriesName, size,
+			str(finish), fmt.Sprintf("%.2f", boxes),
+			str(reference), str(reason), str(userEmail),
+		}
+		w.Write(row)
+	}
+	w.Flush()
+}
+
+func str(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// DashboardStats returns summary stats with optional date filtering
+func (h *StockHandler) DashboardStats(c *gin.Context) {
+	orgID := c.GetString("org_id")
+	dateFrom := c.Query("from")
+	dateTo := c.Query("to")
+
+	var stats struct {
+		TotalProducts int     `db:"total_products" json:"total_products"`
+		TotalBoxes    float64 `db:"total_boxes" json:"total_boxes"`
+		StockValue    float64 `db:"stock_value" json:"stock_value"`
+		LowStockCount int     `db:"low_stock_count" json:"low_stock_count"`
+		BoxesOut      float64 `db:"boxes_out" json:"boxes_out"`
+		Revenue       float64 `db:"revenue" json:"revenue"`
+		DamageBoxes   float64 `db:"damage_boxes" json:"damage_boxes"`
+	}
+
+	// Current stock stats (always all-time, it's a snapshot)
+	h.DB.Get(&stats.TotalProducts,
+		`SELECT COUNT(*) FROM products WHERE org_id=$1`, orgID)
+	h.DB.Get(&stats.TotalBoxes,
+		`SELECT COALESCE(SUM(boxes_in_stock),0) FROM current_stock WHERE org_id=$1`, orgID)
+	h.DB.Get(&stats.StockValue,
+		`SELECT COALESCE(SUM(stock_value),0) FROM current_stock WHERE org_id=$1`, orgID)
+	h.DB.Get(&stats.LowStockCount,
+		`SELECT COUNT(*) FROM current_stock WHERE org_id=$1 AND boxes_in_stock <= reorder_level`, orgID)
+
+	// Period-based stats
+	periodQuery := `SELECT
+		COALESCE(SUM(CASE WHEN movement_type='out' THEN boxes ELSE 0 END), 0) AS boxes_out,
+		COALESCE(SUM(CASE WHEN movement_type='damage' THEN boxes ELSE 0 END), 0) AS damage_boxes
+		FROM stock_movements m
+		JOIN products p ON p.id = m.product_id
+		WHERE m.org_id=$1`
+	args := []interface{}{orgID}
+	argIdx := 2
+	if dateFrom != "" {
+		periodQuery += fmt.Sprintf(" AND m.created_at >= $%d", argIdx)
+		args = append(args, dateFrom)
+		argIdx++
+	}
+	if dateTo != "" {
+		periodQuery += fmt.Sprintf(" AND m.created_at < $%d", argIdx)
+		args = append(args, dateTo)
+	}
+
+	var period struct {
+		BoxesOut    float64 `db:"boxes_out"`
+		DamageBoxes float64 `db:"damage_boxes"`
+	}
+	h.DB.Get(&period, periodQuery, args...)
+	stats.BoxesOut = period.BoxesOut
+	stats.DamageBoxes = period.DamageBoxes
+
+	// Revenue = boxes out * price_per_box
+	revenueQuery := `SELECT COALESCE(SUM(m.boxes * p.price_per_box),0)
+		FROM stock_movements m
+		JOIN products p ON p.id = m.product_id
+		WHERE m.org_id=$1 AND m.movement_type='out'`
+	revenueArgs := []interface{}{orgID}
+	revenueIdx := 2
+	if dateFrom != "" {
+		revenueQuery += fmt.Sprintf(" AND m.created_at >= $%d", revenueIdx)
+		revenueArgs = append(revenueArgs, dateFrom)
+		revenueIdx++
+	}
+	if dateTo != "" {
+		revenueQuery += fmt.Sprintf(" AND m.created_at < $%d", revenueIdx)
+		revenueArgs = append(revenueArgs, dateTo)
+	}
+	h.DB.Get(&stats.Revenue, revenueQuery, revenueArgs...)
+
+	c.JSON(http.StatusOK, stats)
 }
 
 type productStat struct {
@@ -154,19 +335,18 @@ func (h *StockHandler) Analytics(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "analytics failed"})
 		return
 	}
+	if stats == nil {
+		stats = []productStat{}
+	}
 
-	// Summary totals
-	var totalRevenue float64
-	var totalProducts int
+	totalRevenue := 0.0
 	for _, s := range stats {
 		totalRevenue += s.Revenue
-		totalProducts++
-		_ = s
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"products":       stats,
 		"total_revenue":  totalRevenue,
-		"total_products": totalProducts,
+		"total_products": len(stats),
 	})
 }

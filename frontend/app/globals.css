@@ -38,7 +38,11 @@
   --font-sans: var(--font-inter);
   --font-mono: var(--font-plex-mono);
 }
-
+@media print {
+  .print\:hidden {
+    display: none !important;
+  }
+}
 body {
   background: var(--color-kiln);
   color: var(--color-ink);

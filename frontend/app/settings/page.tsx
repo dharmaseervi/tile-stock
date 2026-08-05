@@ -37,12 +37,14 @@ export default function SettingsPage() {
 
   const [branchForm, setBranchForm] = useState({ name: "", address: "" });
   const [supplierForm, setSupplierForm] = useState({ name: "", contact_name: "", phone: "", email: "" });
-
-  const publicUrl = typeof window !== "undefined" ? `${window.location.origin}/price-list/${orgId}` : "";
+  const [publicUrl, setPublicUrl] = useState("");
+  useEffect(() => {
+    if (orgId) setPublicUrl(`${window.location.origin}/price-list/${orgId}`);
+  }, [orgId]);
 
   function loadAll() {
     api.listStaff().then((s) => setStaff(s ?? []));
-    api.getSubscription().then(setSubscription).catch(() => {});
+    api.getSubscription().then(setSubscription).catch(() => { });
     api.listBranches().then((b) => setBranches(b ?? []));
     api.listSuppliers().then((s) => setSuppliers(s ?? []));
   }

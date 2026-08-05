@@ -47,10 +47,10 @@ type StockMovement struct {
 	OrgID        string    `db:"org_id" json:"org_id"`
 	ProductID    string    `db:"product_id" json:"product_id"`
 	BatchID      *string   `db:"batch_id" json:"batch_id"`
-	BranchID     *string   `db:"branch_id" json:"branch_id"`
-	MovementType string    `db:"movement_type" json:"movement_type"` // in | out
+	MovementType string    `db:"movement_type" json:"movement_type"`
 	Boxes        float64   `db:"boxes" json:"boxes"`
 	Reference    *string   `db:"reference" json:"reference"`
+	Reason       *string   `db:"reason" json:"reason"`
 	CreatedBy    *string   `db:"created_by" json:"created_by"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 }
@@ -64,6 +64,8 @@ type CurrentStock struct {
 	Finish       *string `db:"finish" json:"finish"`
 	ReorderLevel int     `db:"reorder_level" json:"reorder_level"`
 	PricePerBox  float64 `db:"price_per_box" json:"price_per_box"`
+	CostPrice    float64 `db:"cost_price" json:"cost_price"`
 	BoxesInStock float64 `db:"boxes_in_stock" json:"boxes_in_stock"`
 	StockValue   float64 `db:"stock_value" json:"stock_value"`
+	StockCost    float64 `db:"stock_cost" json:"stock_cost"`
 }

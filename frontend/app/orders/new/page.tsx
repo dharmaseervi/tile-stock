@@ -122,8 +122,8 @@ export default function NewOrderPage() {
             <input placeholder="Notes (optional)" value={notes}
               onChange={(e) => setNotes(e.target.value)} className={inputClass} style={inputStyle} />
           </div>
-
-          <div className="bg-white rounded-lg grout-border p-4 space-y-3">
+ j
+          <div className="bg-white rounded-lg grout-border p-4 space-y-3"> 
             <h2 className="text-sm font-medium" style={{ color: "var(--color-ink-soft)" }}>Line Items</h2>
             {items.map((item, i) => (
               <div key={i} className="space-y-2 pb-3" style={{ borderBottom: i < items.length - 1 ? "1px solid var(--color-grout)" : "none" }}>

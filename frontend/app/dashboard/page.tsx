@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Boxes, AlertTriangle, Package, Plus, IndianRupee, Download } from "lucide-react";
 import Link from "next/link";
-import { api, isLoggedIn } from "@/lib/api";import Nav from "@/components/Nav";
+import { api, isLoggedIn } from "@/lib/api";
+import Nav from "@/components/Nav";
+
 
 type StockRow = {
   product_id: string;
@@ -55,6 +57,7 @@ export default function DashboardPage() {
   const [stock, setStock] = useState<StockRow[]>([]);
   const [lowStock, setLowStock] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sizeFilter, setSizeFilter] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -139,6 +142,36 @@ export default function DashboardPage() {
             Current Stock
           </h2>
 
+          {/* Size filter pills */}
+          {stock.length > 0 && (() => {
+            const sizes = Array.from(new Set(stock.map((p) => p.size))).sort();
+            return sizes.length > 1 ? (
+              <div className="flex flex-wrap gap-2 mb-3">
+                <button
+                  onClick={() => setSizeFilter(null)}
+                  className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
+                  style={sizeFilter === null
+                    ? { background: "var(--color-glaze)", color: "white" }
+                    : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
+                >
+                  All sizes
+                </button>
+                {sizes.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSizeFilter(sizeFilter === s ? null : s)}
+                    className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors font-[family-name:var(--font-mono)]"
+                    style={sizeFilter === s
+                      ? { background: "var(--color-glaze)", color: "white" }
+                      : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            ) : null;
+          })()}
+
           {loading ? (
             <TableSkeleton />
           ) : stock.length === 0 ? (
@@ -175,28 +208,57 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="grout-divide">
-                  {stock.map((p) => {
-                    const low = p.boxes_in_stock <= p.reorder_level;
-                    return (
-                      <tr key={p.product_id} className="hover:bg-[var(--color-kiln-dim)] transition-colors">
-                        <td className="px-4 py-2.5">{p.brand}</td>
-                        <td className="px-4 py-2.5">{p.series_name}</td>
-                        <td className="px-4 py-2.5">{p.size}</td>
-                        <td className="px-4 py-2.5" style={{ color: "var(--color-ink-soft)" }}>
-                          {p.finish || "—"}
-                        </td>
-                        <td
-                          className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)]"
-                          style={{ color: low ? "var(--color-ochre)" : "var(--color-ink)", fontWeight: low ? 600 : 400 }}
-                        >
-                          {p.boxes_in_stock}
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)]" style={{ color: "var(--color-ink-soft)" }}>
-                          {p.stock_value > 0 ? `₹${p.stock_value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {(() => {
+                    const groups: Record<string, StockRow[]> = {};
+                    stock
+                      .filter((p) => !sizeFilter || p.size === sizeFilter)
+                      .forEach((p) => {
+                        if (!groups[p.size]) groups[p.size] = [];
+                        groups[p.size].push(p);
+                      });
+
+                    return Object.entries(groups).map(([size, rows]) => {
+                      const groupBoxes = rows.reduce((s, p) => s + p.boxes_in_stock, 0);
+                      const groupValue = rows.reduce((s, p) => s + (p.stock_value || 0), 0);
+                      return (
+                        <React.Fragment key={size}>
+                          {rows.map((p) => {
+                            const low = p.boxes_in_stock <= p.reorder_level;
+                            return (
+                              <tr key={p.product_id} className="hover:bg-[var(--color-kiln-dim)] transition-colors">
+                                <td className="px-4 py-2.5">{p.brand}</td>
+                                <td className="px-4 py-2.5">{p.series_name}</td>
+                                <td className="px-4 py-2.5">{p.size}</td>
+                                <td className="px-4 py-2.5" style={{ color: "var(--color-ink-soft)" }}>
+                                  {p.finish || "—"}
+                                </td>
+                                <td
+                                  className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)]"
+                                  style={{ color: low ? "var(--color-ochre)" : "var(--color-ink)", fontWeight: low ? 600 : 400 }}
+                                >
+                                  {p.boxes_in_stock}
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)]" style={{ color: "var(--color-ink-soft)" }}>
+                                  {p.stock_value > 0 ? `₹${p.stock_value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "—"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          <tr key={`subtotal-${size}`}>
+                            <td colSpan={4} className="px-4 py-2 text-xs font-medium text-right" style={{ background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                              {size} total
+                            </td>
+                            <td className="px-4 py-2 text-right font-[family-name:var(--font-mono)] text-xs font-semibold" style={{ background: "var(--color-kiln-dim)", color: "var(--color-glaze-deep)" }}>
+                              {groupBoxes}
+                            </td>
+                            <td className="px-4 py-2 text-right font-[family-name:var(--font-mono)] text-xs font-semibold" style={{ background: "var(--color-kiln-dim)", color: "var(--color-glaze-deep)" }}>
+                              {groupValue > 0 ? `₹${groupValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "—"}
+                            </td>
+                          </tr>
+                        </React.Fragment>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>

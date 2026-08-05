@@ -52,7 +52,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		return
 	}
 
-	token, err := issueToken(userID, orgID)
+	token, err := issueToken(userID, orgID, "owner")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token issue failed"})
 		return
@@ -76,8 +76,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		ID           string `db:"id"`
 		OrgID        string `db:"org_id"`
 		PasswordHash string `db:"password_hash"`
+		Role         string `db:"role"`
 	}
-	err := h.DB.Get(&user, `SELECT id, org_id, password_hash FROM users WHERE email=$1`, req.Email)
+	err := h.DB.Get(&user, `SELECT id, org_id, password_hash, role FROM users WHERE email=$1`, req.Email)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
@@ -88,7 +89,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := issueToken(user.ID, user.OrgID)
+	token, err := issueToken(user.ID, user.OrgID, user.Role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token issue failed"})
 		return
@@ -96,10 +97,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
-func issueToken(userID, orgID string) (string, error) {
+func issueToken(userID, orgID, role string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"org_id":  orgID,
+		"role":    role,
 		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

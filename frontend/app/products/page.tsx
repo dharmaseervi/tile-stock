@@ -29,6 +29,7 @@ type Product = {
   sqft_per_box: number | null;
   reorder_level: number;
   price_per_box: number;
+  cost_price: number;
   image_url: string | null;
 };
 
@@ -372,6 +373,7 @@ export default function ProductsPage() {
                 <th className="px-4 py-2.5 font-medium">Finish</th>
                 <th className="px-4 py-2.5 font-medium">Reorder at</th>
                 <th className="px-4 py-2.5 font-medium text-right">Price / box</th>
+                <th className="px-4 py-2.5 font-medium text-right">Margin</th>
                 <th className="px-4 py-2.5"></th>
               </tr>
             </thead>
@@ -411,6 +413,16 @@ export default function ProductsPage() {
                   <td className="px-4 py-2.5 font-[family-name:var(--font-mono)] text-right">
                     {p.price_per_box > 0 ? `₹${p.price_per_box.toFixed(2)}` : "—"}
                   </td>
+                  <td className="px-4 py-2.5 font-[family-name:var(--font-mono)] text-right text-xs">
+                    {p.cost_price > 0 && p.price_per_box > 0 ? (() => {
+                      const margin = ((p.price_per_box - p.cost_price) / p.price_per_box) * 100;
+                      return (
+                        <span style={{ color: margin < 10 ? "var(--color-oxide)" : margin < 20 ? "var(--color-ochre)" : "var(--color-moss)" }}>
+                          {margin.toFixed(0)}%
+                        </span>
+                      );
+                    })() : <span style={{ color: "var(--color-grout-strong)" }}>—</span>}
+                  </td>
                   <td className="px-4 py-2.5 text-right">
                     <button
                       onClick={(e) => {
@@ -428,7 +440,7 @@ export default function ProductsPage() {
               ))}
               {filteredProducts.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10">
+                  <td colSpan={9} className="px-4 py-10">
                     <div className="flex flex-col items-center text-center gap-2">
                       <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--color-kiln-dim)" }}>
                         <Package size={18} style={{ color: "var(--color-ink-soft)" }} />

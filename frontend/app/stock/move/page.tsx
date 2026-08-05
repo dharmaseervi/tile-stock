@@ -2,15 +2,30 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDownToLine, ArrowUpFromLine, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  ArrowDownToLine, ArrowUpFromLine, RefreshCw,
+  AlertTriangle, CheckCircle2,
+} from "lucide-react";
 import { api, isLoggedIn } from "@/lib/api";
-import Nav from "@/components/Nav";
 import { shadeColor } from "@/lib/shade";
+import Nav from "@/components/Nav";
 
 type Product = { id: string; brand: string; series_name: string; size: string };
 type Batch = { id: string; lot_number: string };
 
-const inputStyle = { borderColor: "var(--color-grout)", ["--tw-ring-color" as any]: "var(--color-glaze)" };
+type MoveType = "in" | "out" | "adjustment" | "damage";
+
+const TYPES: { key: MoveType; label: string; icon: any; color: string; bg: string }[] = [
+  { key: "in",         label: "Stock In",    icon: ArrowDownToLine, color: "var(--color-moss)",  bg: "var(--color-moss)" },
+  { key: "out",        label: "Stock Out",   icon: ArrowUpFromLine, color: "var(--color-oxide)", bg: "var(--color-oxide)" },
+  { key: "adjustment", label: "Adjustment",  icon: RefreshCw,       color: "var(--color-glaze)", bg: "var(--color-glaze)" },
+  { key: "damage",     label: "Damage",      icon: AlertTriangle,   color: "var(--color-ochre)", bg: "var(--color-ochre)" },
+];
+
+const inputStyle = {
+  borderColor: "var(--color-grout)",
+  ["--tw-ring-color" as any]: "var(--color-glaze)",
+};
 
 export default function StockMovePage() {
   const router = useRouter();
@@ -19,33 +34,27 @@ export default function StockMovePage() {
   const [productId, setProductId] = useState("");
   const [batchId, setBatchId] = useState("");
   const [newLot, setNewLot] = useState("");
-  const [movementType, setMovementType] = useState<"in" | "out">("in");
+  const [movementType, setMovementType] = useState<MoveType>("in");
   const [boxes, setBoxes] = useState("");
   const [reference, setReference] = useState("");
+  const [reason, setReason] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.push("/login");
-      return;
-    }
+    if (!isLoggedIn()) { router.push("/login"); return; }
     api.listProducts().then((p) => setProducts(p ?? []));
   }, [router]);
 
   useEffect(() => {
-    if (productId) {
-      api.listBatches(productId).then((b) => setBatches(b ?? []));
-    } else {
-      setBatches([]);
-    }
+    if (productId) api.listBatches(productId).then((b) => setBatches(b ?? []));
+    else setBatches([]);
     setBatchId("");
   }, [productId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setMessage("");
+    setError(""); setMessage("");
     try {
       let finalBatchId = batchId;
       if (movementType === "in" && newLot.trim()) {
@@ -58,65 +67,72 @@ export default function StockMovePage() {
         movement_type: movementType,
         boxes: parseFloat(boxes),
         reference,
+        reason,
       });
-      setMessage(`Stock ${movementType === "in" ? "in" : "out"} recorded successfully.`);
-      setBoxes("");
-      setReference("");
-      setNewLot("");
+      const typeLabel = TYPES.find((t) => t.key === movementType)?.label || movementType;
+      setMessage(`${typeLabel} recorded successfully.`);
+      setBoxes(""); setReference(""); setReason(""); setNewLot("");
       if (productId) api.listBatches(productId).then((b) => setBatches(b ?? []));
     } catch (err: any) {
       setError(err.message);
     }
   }
 
-  const isIn = movementType === "in";
-  const accent = isIn ? "var(--color-moss)" : "var(--color-oxide)";
+  const activeType = TYPES.find((t) => t.key === movementType)!;
 
   return (
     <div className="min-h-screen" style={{ background: "var(--color-kiln)" }}>
       <Nav />
-      <main className="p-6 max-w-lg mx-auto">
+      <main className="p-4 sm:p-6 max-w-lg mx-auto">
         <h1 className="font-[family-name:var(--font-display)] text-2xl mb-4" style={{ color: "var(--color-ink)" }}>
-          Stock In / Out
+          Stock Movement
         </h1>
+
         <form onSubmit={handleSubmit} className="bg-white rounded-lg grout-border p-5 space-y-4">
           {error && (
             <p className="text-sm flex items-center gap-1.5" style={{ color: "var(--color-oxide)" }}>
-              <AlertCircle size={15} />
               {error}
             </p>
           )}
           {message && (
             <p className="text-sm flex items-center gap-1.5" style={{ color: "var(--color-moss)" }}>
-              <CheckCircle2 size={15} />
-              {message}
+              <CheckCircle2 size={14} /> {message}
             </p>
           )}
 
-          <div className="flex gap-2 p-1 rounded-md" style={{ background: "var(--color-kiln-dim)" }}>
-            <button
-              type="button"
-              onClick={() => setMovementType("in")}
-              className="flex-1 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
-              style={isIn ? { background: "var(--color-moss)", color: "white" } : { color: "var(--color-ink-soft)" }}
-            >
-              <ArrowDownToLine size={14} />
-              Stock In
-            </button>
-            <button
-              type="button"
-              onClick={() => setMovementType("out")}
-              className="flex-1 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
-              style={!isIn ? { background: "var(--color-oxide)", color: "white" } : { color: "var(--color-ink-soft)" }}
-            >
-              <ArrowUpFromLine size={14} />
-              Stock Out
-            </button>
+          {/* Type selector */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {TYPES.map((t) => {
+              const Icon = t.icon;
+              const active = movementType === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setMovementType(t.key)}
+                  className="py-2 rounded-lg text-xs font-medium flex flex-col items-center gap-1 transition-colors"
+                  style={active
+                    ? { background: t.bg, color: "white" }
+                    : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
+                >
+                  <Icon size={15} />
+                  {t.label}
+                </button>
+              );
+            })}
           </div>
 
+          {/* Adjustment/damage explanation */}
+          {(movementType === "adjustment" || movementType === "damage") && (
+            <p className="text-xs px-1" style={{ color: "var(--color-ink-soft)" }}>
+              {movementType === "adjustment"
+                ? "Use for stock count corrections — reduces stock without counting as a sale."
+                : "Use for broken or unusable tiles — tracked separately from sales in analytics."}
+            </p>
+          )}
+
           <select
-            required
-            value={productId}
+            required value={productId}
             onChange={(e) => setProductId(e.target.value)}
             className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:ring-2"
             style={inputStyle}
@@ -129,7 +145,7 @@ export default function StockMovePage() {
             ))}
           </select>
 
-          {movementType === "out" && batches.length > 0 && (
+          {movementType !== "in" && batches.length > 0 && (
             <select
               value={batchId}
               onChange={(e) => setBatchId(e.target.value)}
@@ -138,18 +154,15 @@ export default function StockMovePage() {
             >
               <option value="">Any batch / not tracked</option>
               {batches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  Lot {b.lot_number}
-                </option>
+                <option key={b.id} value={b.id}>Lot {b.lot_number}</option>
               ))}
             </select>
           )}
 
-          {movementType === "out" && batches.length > 0 && (
-            <div className="flex flex-wrap gap-2 -mt-2">
+          {batches.length > 0 && (
+            <div className="flex flex-wrap gap-2">
               {batches.map((b) => (
-                <span key={b.id} className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded"
-                  style={{ background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                <span key={b.id} className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-white grout-border">
                   <span className="shade-swatch" style={{ background: shadeColor(b.lot_number) }} />
                   {b.lot_number}
                 </span>
@@ -168,10 +181,7 @@ export default function StockMovePage() {
           )}
 
           <input
-            type="number"
-            step="0.01"
-            min="0.01"
-            required
+            type="number" step="0.01" min="0.01" required
             placeholder="Boxes"
             value={boxes}
             onChange={(e) => setBoxes(e.target.value)}
@@ -180,19 +190,30 @@ export default function StockMovePage() {
           />
 
           <input
-            placeholder="Reference (invoice / PO number)"
+            placeholder="Reference / invoice number"
             value={reference}
             onChange={(e) => setReference(e.target.value)}
             className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:ring-2"
             style={inputStyle}
           />
 
+          {(movementType === "adjustment" || movementType === "damage") && (
+            <input
+              placeholder={movementType === "damage" ? "Reason for damage (e.g. breakage during transport)" : "Reason for adjustment (e.g. physical count correction)"}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:ring-2"
+              style={inputStyle}
+            />
+          )}
+
           <button
             type="submit"
-            className="w-full text-white rounded-md py-2 text-sm font-medium"
-            style={{ background: accent }}
+            className="w-full text-white rounded-md py-2.5 text-sm font-medium flex items-center justify-center gap-1.5"
+            style={{ background: activeType.bg }}
           >
-            Record {isIn ? "Stock In" : "Stock Out"}
+            <activeType.icon size={14} />
+            Record {activeType.label}
           </button>
         </form>
       </main>
