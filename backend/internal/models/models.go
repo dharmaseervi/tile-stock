@@ -29,10 +29,12 @@ type Product struct {
 	SqftPerBox   *float64  `db:"sqft_per_box" json:"sqft_per_box"`
 	ReorderLevel int       `db:"reorder_level" json:"reorder_level"`
 	PricePerBox  float64   `db:"price_per_box" json:"price_per_box"`
+	CostPrice    float64   `db:"cost_price" json:"cost_price"`
 	ImageURL     *string   `db:"image_url" json:"image_url"`
+	SupplierID   *string   `db:"supplier_id" json:"supplier_id"`
+	BranchID     *string   `db:"branch_id" json:"branch_id"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 }
-
 type Batch struct {
 	ID         string     `db:"id" json:"id"`
 	OrgID      string     `db:"org_id" json:"org_id"`
@@ -51,6 +53,7 @@ type StockMovement struct {
 	Boxes        float64   `db:"boxes" json:"boxes"`
 	Reference    *string   `db:"reference" json:"reference"`
 	Reason       *string   `db:"reason" json:"reason"`
+	BranchID     *string   `db:"branch_id" json:"branch_id"`
 	CreatedBy    *string   `db:"created_by" json:"created_by"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 }

@@ -41,16 +41,20 @@ export default function ProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     brand: "",
     series_name: "",
     size: "",
     finish: "",
+    hsn_code: "",
     pieces_per_box: 1,
     sqft_per_box: "",
     reorder_level: 10,
     price_per_box: "",
+    cost_price: "",
   });
   const [error, setError] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
@@ -121,6 +125,9 @@ export default function ProductsPage() {
     return matchesSearch && matchesFinish && matchesBrand && matchesSize;
   });
 
+  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE);
+  const pagedProducts = filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   // Only show pills for values actually present in this dealer's products.
   const finishPills = Array.from(new Set(products.map((p) => p.finish).filter(Boolean))) as string[];
   const brandPills = Array.from(new Set(products.map((p) => p.brand))).sort();
@@ -150,7 +157,7 @@ export default function ProductsPage() {
         price_per_box: form.price_per_box ? parseFloat(form.price_per_box) : 0,
         image_url,
       });
-      setForm({ brand: "", series_name: "", size: "", finish: "", pieces_per_box: 1, sqft_per_box: "", reorder_level: 10, price_per_box: "" });
+      setForm({ brand: "", series_name: "", size: "", finish: "", hsn_code: "", pieces_per_box: 1, sqft_per_box: "", reorder_level: 10, price_per_box: "", cost_price: "" });
       setIsCustomSize(false);
       setPhoto(null);
       setPhotoPreview(null);
@@ -203,67 +210,170 @@ export default function ProductsPage() {
         </div>
 
         {showForm && (
-          <form onSubmit={handleAdd} className="bg-white rounded-lg grout-border p-4 grid grid-cols-2 gap-3">
-            {error && <p className="col-span-2 text-sm" style={{ color: "var(--color-oxide)" }}>{error}</p>}
-            <input placeholder="Brand" required value={form.brand} list="brand-suggestions"
-              onChange={(e) => setForm({ ...form, brand: e.target.value })}
-              className={inputClass} style={inputStyle} />
-            <datalist id="brand-suggestions">
-              {brandSuggestions.map((b) => <option key={b} value={b} />)}
-            </datalist>
-            <input placeholder="Series name" required value={form.series_name}
-              onChange={(e) => setForm({ ...form, series_name: e.target.value })}
-              className={inputClass} style={inputStyle} />
-            {isCustomSize ? (
-              <input placeholder="Size (e.g. 600x600)" required value={form.size}
-                onChange={(e) => setForm({ ...form, size: e.target.value })}
-                className={inputClass} style={inputStyle} />
-            ) : (
-              <select required value={TILE_SIZES.find((s) => s.label === `${form.size.replace("x", " x ")} mm`)?.label || ""}
-                onChange={handleSizeSelect}
-                className={inputClass} style={inputStyle}>
-                <option value="" disabled>Select size</option>
-                {TILE_SIZES.map((s) => (
-                  <option key={s.label} value={s.label}>{s.label}</option>
-                ))}
-              </select>
-            )}
-            <input placeholder="Finish (glossy, matte…)" value={form.finish} list="finish-suggestions"
-              onChange={(e) => setForm({ ...form, finish: e.target.value })}
-              className={inputClass} style={inputStyle} />
-            <datalist id="finish-suggestions">
-              {COMMON_FINISHES.map((f) => <option key={f} value={f} />)}
-            </datalist>
-            <input type="number" min={1} placeholder="Pieces per box" required value={form.pieces_per_box}
-              onChange={(e) => handlePiecesPerBoxChange(e.target.value === "" ? 0 : parseInt(e.target.value) || 0)}
-              className={inputClass} style={inputStyle} />
-            <div className="flex flex-col gap-1">
-              <input type="number" step="0.01" placeholder="Sq.ft per box" value={form.sqft_per_box}
-                onChange={(e) => setForm({ ...form, sqft_per_box: e.target.value })}
-                className={inputClass} style={inputStyle} />
-              {!isCustomSize && form.size && (
-                <span className="text-xs" style={{ color: "var(--color-ink-soft)" }}>Auto-calculated — you can override</span>
+          <form onSubmit={handleAdd} className="bg-white rounded-xl grout-border overflow-hidden">
+
+            {/* Photo hero */}
+            <div
+              className="relative flex items-center justify-center"
+              style={{
+                background: photoPreview ? "var(--color-ink)" : "var(--color-kiln-dim)",
+                borderBottom: "1px solid var(--color-grout)",
+                minHeight: 160,
+              }}
+            >
+              {photoPreview ? (
+                <img src={photoPreview} alt="Preview" className="w-full object-cover" style={{ maxHeight: 220 }} />
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center" style={{ background: "var(--color-grout)" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--color-ink-soft)" }}>
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium" style={{ color: "var(--color-ink)" }}>Add a tile photo</p>
+                  <p className="text-xs mt-1" style={{ color: "var(--color-ink-soft)" }}>Shows on your public price list</p>
+                </div>
               )}
+              <div className="absolute bottom-3 right-3 flex gap-2">
+                <label className="text-xs font-medium px-3 py-1.5 rounded-md cursor-pointer transition-colors"
+                  style={{ background: photoPreview ? "rgba(0,0,0,.55)" : "var(--color-glaze)", color: "#fff" }}>
+                  {photo ? "Change" : "Upload photo"}
+                  <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+                </label>
+                {photo && (
+                  <button type="button" onClick={() => { setPhoto(null); setPhotoPreview(null); }}
+                    className="text-xs font-medium px-3 py-1.5 rounded-md"
+                    style={{ background: "rgba(0,0,0,.55)", color: "#fff" }}>
+                    Remove
+                  </button>
+                )}
+              </div>
             </div>
-            <input type="number" min={0} placeholder="Reorder level (boxes)" required value={form.reorder_level}
-              onChange={(e) => setForm({ ...form, reorder_level: e.target.value === "" ? 0 : parseInt(e.target.value) || 0 })}
-              className={inputClass} style={inputStyle} />
-            <input type="number" step="0.01" min={0} placeholder="Price per box (₹)" value={form.price_per_box}
-              onChange={(e) => setForm({ ...form, price_per_box: e.target.value })}
-              className={inputClass} style={inputStyle} />
-            <div className="col-span-2 flex items-center gap-3">
-              {photoPreview && (
-                <img src={photoPreview} alt="Preview" className="w-14 h-14 object-cover rounded-md grout-border" />
-              )}
-              <label className="text-sm cursor-pointer px-3 py-2 rounded-md grout-border" style={{ color: "var(--color-ink-soft)" }}>
-                {photo ? "Change photo" : "Add product photo (optional)"}
-                <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
-              </label>
+
+            <div className="p-5 space-y-5">
+              {error && <p className="text-sm" style={{ color: "var(--color-oxide)" }}>{error}</p>}
+
+              {/* Identity */}
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-ink-soft)" }}>Identity</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Brand</label>
+                    <input placeholder="Kajaria, Somany…" required value={form.brand} list="brand-suggestions"
+                      onChange={(e) => setForm({ ...form, brand: e.target.value })}
+                      className={`${inputClass} w-full`} style={inputStyle} />
+                    <datalist id="brand-suggestions">
+                      {brandSuggestions.map((b) => <option key={b} value={b} />)}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Series / Design name</label>
+                    <input placeholder="Dolomite Grey, Onyx…" required value={form.series_name}
+                      onChange={(e) => setForm({ ...form, series_name: e.target.value })}
+                      className={`${inputClass} w-full`} style={inputStyle} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dimensions */}
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-ink-soft)" }}>Dimensions</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Size</label>
+                    {isCustomSize ? (
+                      <input placeholder="e.g. 600x600" required value={form.size}
+                        onChange={(e) => setForm({ ...form, size: e.target.value })}
+                        className={`${inputClass} w-full`} style={inputStyle} />
+                    ) : (
+                      <select required
+                        value={TILE_SIZES.find((s) => s.label === `${form.size.replace("x", " x ")} mm`)?.label || ""}
+                        onChange={handleSizeSelect}
+                        className={`${inputClass} w-full`} style={inputStyle}>
+                        <option value="" disabled>Select size</option>
+                        {TILE_SIZES.map((s) => <option key={s.label} value={s.label}>{s.label}</option>)}
+                      </select>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Finish</label>
+                    <input placeholder="Glossy, Matte, Carving…" value={form.finish} list="finish-suggestions"
+                      onChange={(e) => setForm({ ...form, finish: e.target.value })}
+                      className={`${inputClass} w-full`} style={inputStyle} />
+                    <datalist id="finish-suggestions">
+                      {COMMON_FINISHES.map((f) => <option key={f} value={f} />)}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Pieces per box</label>
+                    <input type="number" min={1} placeholder="2" required value={form.pieces_per_box}
+                      onChange={(e) => handlePiecesPerBoxChange(e.target.value === "" ? 0 : parseInt(e.target.value) || 0)}
+                      className={`${inputClass} w-full`} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>
+                      Sq.ft per box
+                      {!isCustomSize && form.size && (
+                        <span className="ml-1.5 font-normal" style={{ color: "var(--color-glaze)" }}>Auto-calculated</span>
+                      )}
+                    </label>
+                    <input type="number" step="0.01" placeholder="0.00" value={form.sqft_per_box}
+                      onChange={(e) => setForm({ ...form, sqft_per_box: e.target.value })}
+                      className={`${inputClass} w-full`} style={inputStyle} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Stock & pricing */}
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-ink-soft)" }}>Stock & pricing</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Reorder level (boxes)</label>
+                    <input type="number" min={0} placeholder="20" required value={form.reorder_level}
+                      onChange={(e) => setForm({ ...form, reorder_level: e.target.value === "" ? 0 : parseInt(e.target.value) || 0 })}
+                      className={`${inputClass} w-full`} style={inputStyle} />
+                    <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-soft)" }}>Alert fires when stock hits this</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Selling price per box (₹)</label>
+                    <input type="number" step="0.01" min={0} placeholder="0.00" value={form.price_per_box}
+                      onChange={(e) => setForm({ ...form, price_per_box: e.target.value })}
+                      className={`${inputClass} w-full`} style={inputStyle} />
+                    <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-soft)" }}>Shown on public price list</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Cost price per box (₹)</label>
+                    <input type="number" step="0.01" min={0} placeholder="0.00" value={form.cost_price}
+                      onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
+                      className={`${inputClass} w-full`} style={inputStyle} />
+                    <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-soft)" }}>Used to calculate margin</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>HSN code</label>
+                    <input placeholder="69072190" value={form.hsn_code}
+                      onChange={(e) => setForm({ ...form, hsn_code: e.target.value })}
+                      className={`${inputClass} w-full`} style={inputStyle} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-1">
+                <button type="submit" disabled={uploading}
+                  className="flex-1 text-white rounded-md py-2.5 text-sm font-medium disabled:opacity-50 transition-opacity hover:opacity-90"
+                  style={{ background: "var(--color-glaze)" }}>
+                  {uploading ? "Uploading photo…" : "Add product"}
+                </button>
+                <button type="button" onClick={() => setShowForm(false)}
+                  className="px-4 py-2.5 rounded-md text-sm grout-border"
+                  style={{ color: "var(--color-ink-soft)" }}>
+                  Cancel
+                </button>
+              </div>
             </div>
-            <button type="submit" disabled={uploading} className="col-span-2 text-white rounded-md py-2 text-sm font-medium disabled:opacity-50"
-              style={{ background: "var(--color-glaze)" }}>
-              {uploading ? "Uploading photo…" : "Save Product"}
-            </button>
           </form>
         )}
 
@@ -273,7 +383,7 @@ export default function ProductsPage() {
             type="text"
             placeholder="Search by brand, series, size, or finish…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="w-full rounded-md pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 grout-border"
             style={{ ["--tw-ring-color" as any]: "var(--color-glaze)" }}
           />
@@ -378,7 +488,7 @@ export default function ProductsPage() {
               </tr>
             </thead>
             <tbody className="grout-divide">
-              {filteredProducts.map((p) => (
+              {pagedProducts.map((p) => (
                 <tr
                   key={p.id}
                   className="hover:bg-[var(--color-kiln-dim)] transition-colors group cursor-pointer"
@@ -456,6 +566,46 @@ export default function ProductsPage() {
               )}
             </tbody>
           </table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-4 py-3 flex items-center justify-between border-t"
+              style={{ borderColor: "var(--color-grout)", background: "var(--color-kiln-dim)" }}>
+              <p className="text-xs" style={{ color: "var(--color-ink-soft)" }}>
+                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredProducts.length)} of {filteredProducts.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+                  className="px-3 py-1.5 rounded text-xs grout-border bg-white disabled:opacity-40"
+                  style={{ color: "var(--color-ink-soft)" }}>
+                  ← Prev
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+                  .reduce<(number | "…")[]>((acc, n, i, arr) => {
+                    if (i > 0 && (arr[i - 1] as number) < n - 1) acc.push("…");
+                    acc.push(n);
+                    return acc;
+                  }, [])
+                  .map((n, i) => n === "…" ? (
+                    <span key={`e${i}`} className="px-1 text-xs" style={{ color: "var(--color-ink-soft)" }}>…</span>
+                  ) : (
+                    <button key={n} onClick={() => setPage(n as number)}
+                      className="w-8 h-8 rounded text-xs font-medium transition-colors"
+                      style={page === n
+                        ? { background: "var(--color-glaze)", color: "#fff" }
+                        : { color: "var(--color-ink-soft)" }}>
+                      {n}
+                    </button>
+                  ))}
+                <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                  className="px-3 py-1.5 rounded text-xs grout-border bg-white disabled:opacity-40"
+                  style={{ color: "var(--color-ink-soft)" }}>
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {lightboxImage && (

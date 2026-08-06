@@ -112,20 +112,34 @@ export default function ProductDetailPage() {
     }
   }
 
+  const [editPhoto, setEditPhoto] = useState<File | null>(null);
+  const [editPhotoPreview, setEditPhotoPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setUploading(true);
     try {
+      let image_url = product?.image_url || "";
+      if (editPhoto) {
+        const { uploadProductPhoto } = await import("@/lib/supabase");
+        image_url = await uploadProductPhoto(editPhoto);
+      }
       await api.updateProduct(id, {
         ...form,
         sqft_per_box: form.sqft_per_box ? parseFloat(form.sqft_per_box) : 0,
         price_per_box: form.price_per_box ? parseFloat(form.price_per_box) : 0,
-        image_url: "",
+        image_url,
       });
       setEditing(false);
+      setEditPhoto(null);
+      setEditPhotoPreview(null);
       load();
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -314,8 +328,50 @@ export default function ProductDetailPage() {
               onChange={(e) => setForm({ ...form, reorder_level: parseInt(e.target.value) || 0 })} className={inputClass} style={inputStyle} />
             <input type="number" step="0.01" min={0} placeholder="Price per box (₹)" value={form.price_per_box}
               onChange={(e) => setForm({ ...form, price_per_box: e.target.value })} className={inputClass} style={inputStyle} />
-            <button type="submit" className="col-span-2 text-white rounded-md py-2 text-sm font-medium" style={{ background: "var(--color-glaze)" }}>
-              Save Changes
+
+            {/* Photo upload */}
+            <div className="col-span-2 flex items-center gap-3">
+              {(editPhotoPreview || product.image_url) && (
+                <img
+                  src={editPhotoPreview || product.image_url!}
+                  alt="Preview"
+                  className="w-14 h-14 object-cover rounded-md shrink-0"
+                  style={{ border: "1px solid var(--color-grout)" }}
+                />
+              )}
+              <label className="flex-1 text-sm px-3 py-2 rounded-md cursor-pointer text-center grout-border hover:bg-[var(--color-kiln-dim)] transition-colors"
+                style={{ color: "var(--color-ink-soft)" }}>
+                {editPhoto ? editPhoto.name : product.image_url ? "Change photo" : "Add photo (optional)"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    setEditPhoto(f);
+                    setEditPhotoPreview(URL.createObjectURL(f));
+                  }}
+                />
+              </label>
+              {(editPhoto || product.image_url) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditPhoto(null);
+                    setEditPhotoPreview(null);
+                    setForm({ ...form, image_url: "" });
+                  }}
+                  className="text-xs px-2 py-1.5 rounded-md grout-border"
+                  style={{ color: "var(--color-oxide)" }}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+
+            <button type="submit" disabled={uploading} className="col-span-2 text-white rounded-md py-2 text-sm font-medium disabled:opacity-50" style={{ background: "var(--color-glaze)" }}>
+              {uploading ? "Uploading photo…" : "Save Changes"}
             </button>
           </form>
         )}

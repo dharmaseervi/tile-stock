@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"tiles-stock/internal/models"
 
@@ -13,16 +14,40 @@ import (
 type ProductHandler struct{ DB *sqlx.DB }
 
 type productReq struct {
-	Brand        string  `json:"brand" binding:"required"`
-	SeriesName   string  `json:"series_name" binding:"required"`
-	Size         string  `json:"size" binding:"required"`
-	Finish       string  `json:"finish"`
-	HSNCode      string  `json:"hsn_code"`
-	PiecesPerBox int     `json:"pieces_per_box" binding:"required,min=1"`
-	SqftPerBox   float64 `json:"sqft_per_box"`
-	ReorderLevel int     `json:"reorder_level"`
-	PricePerBox  float64 `json:"price_per_box"`
-	ImageURL     string  `json:"image_url"`
+	Brand        string `json:"brand" binding:"required"`
+	SeriesName   string `json:"series_name" binding:"required"`
+	Size         string `json:"size" binding:"required"`
+	Finish       string `json:"finish"`
+	HSNCode      string `json:"hsn_code"`
+	PiecesPerBox int    `json:"pieces_per_box" binding:"required,min=1"`
+	// These come from number inputs as strings in some clients — accept both
+	SqftPerBox   interface{} `json:"sqft_per_box"`
+	ReorderLevel interface{} `json:"reorder_level"`
+	PricePerBox  interface{} `json:"price_per_box"`
+	CostPrice    interface{} `json:"cost_price"`
+	ImageURL     string      `json:"image_url"`
+}
+
+func toFloat(v interface{}) float64 {
+	switch val := v.(type) {
+	case float64:
+		return val
+	case string:
+		f, _ := strconv.ParseFloat(val, 64)
+		return f
+	}
+	return 0
+}
+
+func toInt(v interface{}) int {
+	switch val := v.(type) {
+	case float64:
+		return int(val)
+	case string:
+		i, _ := strconv.Atoi(val)
+		return i
+	}
+	return 0
 }
 
 func (h *ProductHandler) Create(c *gin.Context) {
@@ -35,9 +60,13 @@ func (h *ProductHandler) Create(c *gin.Context) {
 
 	id := uuid.NewString()
 	_, err := h.DB.Exec(
-		`INSERT INTO products (id, org_id, brand, series_name, size, finish, hsn_code, pieces_per_box, sqft_per_box, reorder_level, price_per_box, image_url)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-		id, orgID, req.Brand, req.SeriesName, req.Size, req.Finish, req.HSNCode, req.PiecesPerBox, req.SqftPerBox, req.ReorderLevel, req.PricePerBox, req.ImageURL,
+		`INSERT INTO products (id, org_id, brand, series_name, size, finish, hsn_code,
+		 pieces_per_box, sqft_per_box, reorder_level, price_per_box, cost_price, image_url)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+		id, orgID,
+		req.Brand, req.SeriesName, req.Size, req.Finish, req.HSNCode,
+		req.PiecesPerBox, toFloat(req.SqftPerBox), toInt(req.ReorderLevel),
+		toFloat(req.PricePerBox), toFloat(req.CostPrice), req.ImageURL,
 	)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "product already exists for this brand/series/size/finish"})
@@ -49,10 +78,7 @@ func (h *ProductHandler) Create(c *gin.Context) {
 func (h *ProductHandler) List(c *gin.Context) {
 	orgID := c.GetString("org_id")
 	var products []models.Product
-	err := h.DB.Select(&products, `
-    SELECT id, org_id, brand, series_name, size, finish, hsn_code,
-           pieces_per_box, sqft_per_box, reorder_level, price_per_box, image_url, created_at
-    FROM products WHERE org_id=$1 ORDER BY brand, series_name`, orgID)
+	err := h.DB.Select(&products, `SELECT * FROM products WHERE org_id=$1 ORDER BY brand, series_name`, orgID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch products"})
 		return
@@ -75,10 +101,7 @@ func (h *ProductHandler) GetOne(c *gin.Context) {
 	orgID := c.GetString("org_id")
 	id := c.Param("id")
 	var product models.Product
-	err := h.DB.Get(&product,
-		`SELECT id, org_id, brand, series_name, size, finish, hsn_code,
-            pieces_per_box, sqft_per_box, reorder_level, price_per_box, image_url, created_at
-     FROM products WHERE id=$1 AND org_id=$2`, id, orgID)
+	err := h.DB.Get(&product, `SELECT * FROM products WHERE id=$1 AND org_id=$2`, id, orgID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
 		return
@@ -101,11 +124,12 @@ func (h *ProductHandler) Update(c *gin.Context) {
 
 	res, err := h.DB.Exec(
 		`UPDATE products SET brand=$1, series_name=$2, size=$3, finish=$4, hsn_code=$5,
-		 pieces_per_box=$6, sqft_per_box=$7, reorder_level=$8, price_per_box=$9,
-		 image_url=COALESCE(NULLIF($10,''), image_url)
-		 WHERE id=$11 AND org_id=$12`,
+		 pieces_per_box=$6, sqft_per_box=$7, reorder_level=$8, price_per_box=$9, cost_price=$10,
+		 image_url=COALESCE(NULLIF($11,''), image_url)
+		 WHERE id=$12 AND org_id=$13`,
 		req.Brand, req.SeriesName, req.Size, req.Finish, req.HSNCode,
-		req.PiecesPerBox, req.SqftPerBox, req.ReorderLevel, req.PricePerBox,
+		req.PiecesPerBox, toFloat(req.SqftPerBox), toInt(req.ReorderLevel),
+		toFloat(req.PricePerBox), toFloat(req.CostPrice),
 		req.ImageURL, id, orgID,
 	)
 	if err != nil {

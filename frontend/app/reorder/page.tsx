@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Clock, Plus, Minus, Trash2, ShoppingCart,
-  FileDown, TrendingDown, CheckCircle2, X,
+  Clock, Plus, Minus, ShoppingCart,
+  FileDown, CheckCircle2, X, ScanLine,
 } from "lucide-react";
 import { api, isLoggedIn } from "@/lib/api";
 import Nav from "@/components/Nav";
+import QrScanner from "@/components/QrScanner";
 
 type Suggestion = {
   product_id: string;
@@ -21,6 +22,15 @@ type Suggestion = {
   boxes_per_week: number;
   weeks_of_stock: number | null;
   suggested_reorder_qty: number;
+};
+
+type Product = {
+  id: string;
+  brand: string;
+  series_name: string;
+  size: string;
+  finish: string | null;
+  price_per_box: number;
 };
 
 type CartItem = {
@@ -43,6 +53,7 @@ const inputStyle = {
 export default function ReorderPage() {
   const router = useRouter();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -50,29 +61,65 @@ export default function ReorderPage() {
   const [notes, setNotes] = useState("");
   const [generating, setGenerating] = useState(false);
   const [success, setSuccess] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scanMsg, setScanMsg] = useState("");
 
   useEffect(() => {
-    if (!isLoggedIn()) { router.push("/login"); return; }
-    Promise.all([api.reorderSuggestions(), api.listSuppliers()])
-      .then(([s, sup]) => {
+    if (!isLoggedIn()) { router.push("/login?next=%2Freorder"); return; }
+    // The full product list is needed too — a dealer may want to top up a
+    // tile that hasn't dropped below its reorder level yet.
+    Promise.all([api.reorderSuggestions(), api.listSuppliers(), api.listProducts()])
+      .then(([s, sup, prods]) => {
         setSuggestions(s ?? []);
         setSuppliers(sup ?? []);
+        setAllProducts(prods ?? []);
       })
       .finally(() => setLoading(false));
   }, [router]);
 
   function addToCart(s: Suggestion) {
-    if (cart.find((c) => c.product_id === s.product_id)) return;
-    setCart((prev) => [...prev, {
-      product_id: s.product_id,
-      brand: s.brand,
-      series_name: s.series_name,
-      size: s.size,
-      finish: s.finish,
-      boxes: s.suggested_reorder_qty > 0 ? s.suggested_reorder_qty : s.reorder_level,
-      price_per_box: s.price_per_box,
-    }]);
+    setCart((prev) => {
+      if (prev.some((c) => c.product_id === s.product_id)) return prev;
+      return [...prev, {
+        product_id: s.product_id,
+        brand: s.brand,
+        series_name: s.series_name,
+        size: s.size,
+        finish: s.finish,
+        boxes: s.suggested_reorder_qty > 0 ? s.suggested_reorder_qty : s.reorder_level,
+        price_per_box: s.price_per_box,
+      }];
+    });
   }
+
+  const handleScan = useCallback((productId: string) => {
+    const s = suggestions.find((x) => x.product_id === productId);
+    if (s) {
+      addToCart(s);
+      setScanMsg(`Added ${s.brand} — ${s.series_name}`);
+      setTimeout(() => setScanMsg(""), 2200);
+      return;
+    }
+    // Not below reorder level, so it isn't in suggestions — pull it from the
+    // full catalogue instead so any tile can be topped up by scanning.
+    const p = allProducts.find((x) => x.id === productId);
+    if (!p) {
+      setScanMsg("That code isn't a tile in your catalogue.");
+      setTimeout(() => setScanMsg(""), 2200);
+      return;
+    }
+    setCart((prev) => prev.some((c) => c.product_id === productId) ? prev : [...prev, {
+      product_id: p.id,
+      brand: p.brand,
+      series_name: p.series_name,
+      size: p.size,
+      finish: p.finish,
+      boxes: 1,
+      price_per_box: p.price_per_box,
+    }]);
+    setScanMsg(`Added ${p.brand} — ${p.series_name}`);
+    setTimeout(() => setScanMsg(""), 2200);
+  }, [suggestions, allProducts]);
 
   function removeFromCart(id: string) {
     setCart((prev) => prev.filter((c) => c.product_id !== id));
@@ -109,7 +156,7 @@ export default function ReorderPage() {
           })),
         }),
       });
-      if (!res.ok) throw new Error("Failed to generate PO");
+      if (!res.ok) throw new Error("Couldn't generate the purchase order.");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -117,10 +164,10 @@ export default function ReorderPage() {
       a.download = `purchase-order-${new Date().toISOString().slice(0, 10)}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      setSuccess("Purchase order downloaded!");
+      setSuccess("Purchase order downloaded.");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err: any) {
-      alert(err.message);
+      setSuccess(err.message);
     } finally {
       setGenerating(false);
     }
@@ -162,7 +209,7 @@ export default function ReorderPage() {
             <div className="bg-white rounded-xl grout-border p-5 flex items-center gap-3">
               <CheckCircle2 size={18} style={{ color: "var(--color-moss)" }} />
               <p className="text-sm" style={{ color: "var(--color-ink-soft)" }}>
-                All products are above reorder level — nothing urgent.
+                All tiles are above reorder level — nothing urgent.
               </p>
             </div>
           ) : (
@@ -214,21 +261,48 @@ export default function ReorderPage() {
           )}
         </div>
 
-        {/* ── Purchase Order Cart ──────────────────────────────── */}
+        {/* ── Purchase order cart ──────────────────────────────── */}
         <div>
-          <div className="flex items-center gap-2 mb-3">
-            <ShoppingCart size={14} style={{ color: "var(--color-glaze)" }} />
-            <h2 className="text-sm font-medium" style={{ color: "var(--color-ink)" }}>
-              Purchase Order
-            </h2>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <ShoppingCart size={14} style={{ color: "var(--color-glaze)" }} />
+              <h2 className="text-sm font-medium" style={{ color: "var(--color-ink)" }}>
+                Purchase Order
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setScanning((s) => !s)}
+              className="text-xs px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 transition-colors"
+              style={scanning
+                ? { background: "var(--color-ink-soft)", color: "#fff" }
+                : { background: "var(--color-glaze-tint)", color: "var(--color-glaze-deep)" }}
+            >
+              <ScanLine size={13} />
+              {scanning ? "Stop scanning" : "Scan tiles"}
+            </button>
           </div>
+
+          {scanning && (
+            <div className="mb-3 space-y-2">
+              <QrScanner
+                onHit={handleScan}
+                onClose={() => setScanning(false)}
+                seenIds={cart.map((c) => c.product_id)}
+                hint="Scan tiles to add to this purchase order"
+              />
+              {scanMsg && (
+                <p className="text-xs text-center" style={{ color: "var(--color-moss)" }}>{scanMsg}</p>
+              )}
+            </div>
+          )}
 
           <div className="bg-white rounded-xl grout-border overflow-hidden">
             {cart.length === 0 ? (
               <div className="px-4 py-8 text-center">
                 <ShoppingCart size={22} className="mx-auto mb-2" style={{ color: "var(--color-grout-strong)" }} />
                 <p className="text-sm" style={{ color: "var(--color-ink-soft)" }}>
-                  Add items from the suggestions above to build your order.
+                  Add tiles from the suggestions above, or scan them off the wall.
                 </p>
               </div>
             ) : (
@@ -251,7 +325,6 @@ export default function ReorderPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-2 items-center">
-                        {/* Boxes stepper */}
                         <div className="flex items-center rounded-md overflow-hidden grout-border">
                           <button onClick={() => updateBoxes(item.product_id, Math.max(1, item.boxes - 1))}
                             className="px-2 py-1.5 hover:bg-[var(--color-kiln-dim)] transition-colors"
@@ -259,7 +332,7 @@ export default function ReorderPage() {
                             <Minus size={12} />
                           </button>
                           <input
-                            type="number" min={1} value={item.boxes}
+                            type="number" min={1} value={item.boxes} inputMode="decimal"
                             onChange={(e) => updateBoxes(item.product_id, parseFloat(e.target.value) || 1)}
                             className="w-12 text-center text-sm py-1.5 outline-none font-[family-name:var(--font-mono)]"
                             style={{ color: "var(--color-ink)" }}
@@ -272,7 +345,6 @@ export default function ReorderPage() {
                           </button>
                         </div>
 
-                        {/* Cost price */}
                         <div className="flex items-center gap-1 rounded-md grout-border px-2 py-1.5" style={{ minWidth: "120px" }}>
                           <span className="text-xs" style={{ color: "var(--color-ink-soft)" }}>₹</span>
                           <input
@@ -284,7 +356,6 @@ export default function ReorderPage() {
                           />
                         </div>
 
-                        {/* Line total */}
                         {item.price_per_box > 0 && (
                           <span className="text-sm font-medium font-[family-name:var(--font-mono)]" style={{ color: "var(--color-glaze-deep)" }}>
                             = ₹{(item.boxes * item.price_per_box).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
@@ -295,7 +366,6 @@ export default function ReorderPage() {
                   ))}
                 </div>
 
-                {/* Totals bar */}
                 <div className="px-4 py-3 flex items-center justify-between border-t"
                   style={{ borderColor: "var(--color-grout)", background: "var(--color-kiln-dim)" }}>
                   <span className="text-sm font-medium" style={{ color: "var(--color-ink)" }}>
@@ -310,7 +380,6 @@ export default function ReorderPage() {
               </>
             )}
 
-            {/* Supplier + notes + generate */}
             <div className="px-4 py-4 space-y-3 border-t" style={{ borderColor: "var(--color-grout)" }}>
               {suppliers.length > 0 && (
                 <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}
