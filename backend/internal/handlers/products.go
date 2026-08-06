@@ -14,13 +14,12 @@ import (
 type ProductHandler struct{ DB *sqlx.DB }
 
 type productReq struct {
-	Brand        string `json:"brand" binding:"required"`
-	SeriesName   string `json:"series_name" binding:"required"`
-	Size         string `json:"size" binding:"required"`
-	Finish       string `json:"finish"`
-	HSNCode      string `json:"hsn_code"`
-	PiecesPerBox int    `json:"pieces_per_box" binding:"required,min=1"`
-	// These come from number inputs as strings in some clients — accept both
+	Brand        string      `json:"brand" binding:"required"`
+	SeriesName   string      `json:"series_name" binding:"required"`
+	Size         string      `json:"size" binding:"required"`
+	Finish       string      `json:"finish"`
+	HSNCode      string      `json:"hsn_code"`
+	PiecesPerBox int         `json:"pieces_per_box" binding:"required,min=1"`
 	SqftPerBox   interface{} `json:"sqft_per_box"`
 	ReorderLevel interface{} `json:"reorder_level"`
 	PricePerBox  interface{} `json:"price_per_box"`

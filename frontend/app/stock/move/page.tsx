@@ -4,30 +4,22 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowDownToLine, ArrowUpFromLine, RefreshCw,
-  AlertTriangle, CheckCircle2,
+  AlertTriangle, CheckCircle2, Boxes,
 } from "lucide-react";
 import { api, isLoggedIn } from "@/lib/api";
 import { shadeColor } from "@/lib/shade";
 import Nav from "@/components/Nav";
-import ProductPicker from "@/components/ProductPicker";
 
-type Product = {
-  id: string;
-  brand: string;
-  series_name: string;
-  size: string;
-  finish: string | null;
-  price_per_box?: number;
-};
+type Product = { id: string; brand: string; series_name: string; size: string };
 type Batch = { id: string; lot_number: string };
 
 type MoveType = "in" | "out" | "adjustment" | "damage";
 
 const TYPES: { key: MoveType; label: string; icon: any; color: string; bg: string }[] = [
-  { key: "in", label: "Stock In", icon: ArrowDownToLine, color: "var(--color-moss)", bg: "var(--color-moss)" },
-  { key: "out", label: "Stock Out", icon: ArrowUpFromLine, color: "var(--color-oxide)", bg: "var(--color-oxide)" },
-  { key: "adjustment", label: "Adjustment", icon: RefreshCw, color: "var(--color-glaze)", bg: "var(--color-glaze)" },
-  { key: "damage", label: "Damage", icon: AlertTriangle, color: "var(--color-ochre)", bg: "var(--color-ochre)" },
+  { key: "in",         label: "Stock In",    icon: ArrowDownToLine, color: "var(--color-moss)",  bg: "var(--color-moss)" },
+  { key: "out",        label: "Stock Out",   icon: ArrowUpFromLine, color: "var(--color-oxide)", bg: "var(--color-oxide)" },
+  { key: "adjustment", label: "Adjustment",  icon: RefreshCw,       color: "var(--color-glaze)", bg: "var(--color-glaze)" },
+  { key: "damage",     label: "Damage",      icon: AlertTriangle,   color: "var(--color-ochre)", bg: "var(--color-ochre)" },
 ];
 
 const inputStyle = {
@@ -48,6 +40,7 @@ export default function StockMovePage() {
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [currentBoxes, setCurrentBoxes] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn()) { router.push("/login"); return; }
@@ -55,18 +48,23 @@ export default function StockMovePage() {
   }, [router]);
 
   useEffect(() => {
-    if (productId) api.listBatches(productId).then((b) => setBatches(b ?? []));
-    else setBatches([]);
+    if (productId) {
+      api.listBatches(productId).then((b) => setBatches(b ?? []));
+      // Fetch current stock for this product so the dealer can see
+      // what they have before recording the movement.
+      api.getProduct(productId).then((d) => {
+        setCurrentBoxes(d?.stock?.boxes_in_stock ?? null);
+      }).catch(() => setCurrentBoxes(null));
+    } else {
+      setBatches([]);
+      setCurrentBoxes(null);
+    }
     setBatchId("");
   }, [productId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(""); setMessage("");
-    if (!productId) {
-      setError("Pick a tile first.");
-      return;
-    }
     try {
       let finalBatchId = batchId;
       if (movementType === "in" && newLot.trim()) {
@@ -83,6 +81,11 @@ export default function StockMovePage() {
       });
       const typeLabel = TYPES.find((t) => t.key === movementType)?.label || movementType;
       setMessage(`${typeLabel} recorded successfully.`);
+      // Update the displayed stock count immediately
+      if (currentBoxes !== null) {
+        const delta = movementType === "in" ? parseFloat(boxes) : -parseFloat(boxes);
+        setCurrentBoxes(Math.max(0, currentBoxes + delta));
+      }
       setBoxes(""); setReference(""); setReason(""); setNewLot("");
       if (productId) api.listBatches(productId).then((b) => setBatches(b ?? []));
     } catch (err: any) {
@@ -110,6 +113,46 @@ export default function StockMovePage() {
             <p className="text-sm flex items-center gap-1.5" style={{ color: "var(--color-moss)" }}>
               <CheckCircle2 size={14} /> {message}
             </p>
+          )}
+
+          {/* Current stock — shown as soon as a product is picked */}
+          {productId && currentBoxes !== null && (
+            <div
+              className="flex items-center gap-3 px-4 py-3 rounded-lg"
+              style={{
+                background: currentBoxes === 0
+                  ? "var(--color-oxide-tint)"
+                  : currentBoxes <= 20
+                  ? "var(--color-ochre-tint)"
+                  : "var(--color-moss-tint)",
+                border: "1px solid",
+                borderColor: currentBoxes === 0
+                  ? "var(--color-oxide)"
+                  : currentBoxes <= 20
+                  ? "var(--color-ochre)"
+                  : "var(--color-moss)",
+              }}
+            >
+              <Boxes size={18} style={{
+                color: currentBoxes === 0
+                  ? "var(--color-oxide)"
+                  : currentBoxes <= 20
+                  ? "var(--color-ochre)"
+                  : "var(--color-moss)",
+              }} />
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--color-ink)" }}>
+                  <span className="font-[family-name:var(--font-mono)] text-lg">{currentBoxes}</span>
+                  {" "}boxes currently in stock
+                </p>
+                {currentBoxes === 0 && (
+                  <p className="text-xs" style={{ color: "var(--color-oxide)" }}>Out of stock</p>
+                )}
+                {currentBoxes > 0 && currentBoxes <= 20 && (
+                  <p className="text-xs" style={{ color: "var(--color-ochre)" }}>Low stock</p>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Type selector */}
@@ -142,11 +185,21 @@ export default function StockMovePage() {
                 : "Use for broken or unusable tiles — tracked separately from sales in analytics."}
             </p>
           )}
-          <ProductPicker
-            products={products}
-            value={productId}
-            onChange={setProductId}
-          />
+
+          <select
+            required value={productId}
+            onChange={(e) => setProductId(e.target.value)}
+            className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:ring-2"
+            style={inputStyle}
+          >
+            <option value="">Select product</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.brand} — {p.series_name} ({p.size})
+              </option>
+            ))}
+          </select>
+
           {movementType !== "in" && batches.length > 0 && (
             <select
               value={batchId}
