@@ -34,10 +34,12 @@ export default function SignupPage() {
         className="bg-white p-8 rounded-xl grout-border w-full max-w-sm space-y-4"
       >
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl italic" style={{ color: "var(--color-glaze-deep)" }}>
+          <a href="/" className="font-[family-name:var(--font-display)] text-2xl italic block" style={{ color: "var(--color-glaze-deep)" }}>
             Tiles Stock
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--color-ink-soft)" }}>Set up your dealership</p>
+          </a>
+          <p className="text-sm mt-1" style={{ color: "var(--color-ink-soft)" }}>
+            Set up your dealership — 30 days free, no card needed.
+          </p>
         </div>
         {error && <p className="text-sm" style={{ color: "var(--color-oxide)" }}>{error}</p>}
         <input

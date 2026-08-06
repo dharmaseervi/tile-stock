@@ -6,17 +6,21 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Package, ArrowLeftRight, LogOut, Menu, X,
   BarChart2, FileText, Users, RefreshCw, Settings,
+  Activity,
+  ScanLine,
 } from "lucide-react";
 import { clearToken } from "@/lib/api";
 
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/products", label: "Products", icon: Package },
+  { href: "/scan", label: "Scan", icon: ScanLine },
   { href: "/stock/move", label: "Stock In / Out", icon: ArrowLeftRight },
   { href: "/orders", label: "Challans", icon: FileText },
   { href: "/customers", label: "Customers", icon: Users },
   { href: "/analytics", label: "Analytics", icon: BarChart2 },
   { href: "/reorder", label: "Reorder", icon: RefreshCw },
+  { href: "/activity", label: "Activity", icon: Activity },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

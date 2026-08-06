@@ -37,11 +37,11 @@ const STATUS_FLOW: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, { label: string; next: string; color: string; icon: any }> = {
-  draft: { label: "Draft", next: "Mark Confirmed", color: "var(--color-glaze)", icon: CheckCircle2 },
-  confirmed: { label: "Confirmed", next: "Mark Dispatched", color: "var(--color-moss)", icon: Truck },
+  draft:      { label: "Draft", next: "Mark Confirmed", color: "var(--color-glaze)", icon: CheckCircle2 },
+  confirmed:  { label: "Confirmed", next: "Mark Dispatched", color: "var(--color-moss)", icon: Truck },
   dispatched: { label: "Dispatched", next: "Mark Delivered", color: "var(--color-moss)", icon: CheckCircle2 },
-  delivered: { label: "Delivered", next: "", color: "var(--color-moss)", icon: CheckCircle2 },
-  cancelled: { label: "Cancelled", next: "", color: "var(--color-oxide)", icon: XCircle },
+  delivered:  { label: "Delivered", next: "", color: "var(--color-moss)", icon: CheckCircle2 },
+  cancelled:  { label: "Cancelled", next: "", color: "var(--color-oxide)", icon: XCircle },
 };
 
 export default function OrderDetailPage() {
@@ -60,7 +60,10 @@ export default function OrderDetailPage() {
   }
 
   useEffect(() => {
-    if (!isLoggedIn()) { router.push("/login"); return; }
+    if (!isLoggedIn()) {
+      router.push(`/login?next=${encodeURIComponent(`/orders/${id}`)}`);
+      return;
+    }
     load();
   }, [id, router]);
 
@@ -128,7 +131,7 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        {/* Challan header */}
+        {/* Challan header — visible on screen and print */}
         <div className="bg-white rounded-lg grout-border p-5 space-y-2 print:border print:rounded-none print:shadow-none">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -165,29 +168,30 @@ export default function OrderDetailPage() {
           )}
         </div>
 
-        {/* Line items */}
+        {/* Line items — worker tick boxes */}
         <div className="bg-white rounded-lg grout-border overflow-hidden print:border print:rounded-none">
-          {/* Header */}
-          <div className="px-4 py-2 text-xs font-medium flex items-center gap-3" style={{ background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
-            <span className="w-7 shrink-0 print:hidden">✓</span>
-            <span className="flex-1">Tile</span>
-            <span className="w-20 text-right shrink-0">Boxes</span>
-           {showPrices && <span className="w-24 text-right shrink-0" data-print="hidden">Amount</span>}
+          <div className="px-4 py-2 text-xs font-medium grid grid-cols-12 gap-2" style={{ background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+            <span className="col-span-1 print:hidden">✓</span>
+            <span className={showPrices ? "col-span-6" : "col-span-7 print:col-span-8"}>Tile</span>
+            <span className="col-span-2 text-right">Boxes</span>
+            {showPrices && <span className="col-span-2 text-right print:hidden">Amount</span>}
+            <span className="col-span-1 print:hidden"></span>
           </div>
-
           <div className="grout-divide">
             {items.map((item) => (
-              <div key={item.id} className="px-4 py-3 flex items-center gap-3">
-                {/* Tick button */}
-                <button onClick={() => toggleLoaded(item.id)} className="w-7 shrink-0 print:hidden"
-                  style={{ color: item.loaded ? "var(--color-moss)" : "var(--color-grout-strong)" }}>
+              <div key={item.id} className="px-4 py-3 grid grid-cols-12 gap-2 items-center">
+                {/* Tick box for workers — hidden on print, replaced by empty checkbox */}
+                <button
+                  onClick={() => toggleLoaded(item.id)}
+                  className="col-span-1 print:hidden"
+                  style={{ color: item.loaded ? "var(--color-moss)" : "var(--color-grout-strong)" }}
+                >
                   {item.loaded ? <CheckSquare size={20} /> : <Square size={20} />}
                 </button>
-                {/* Print checkbox */}
-                <div className="hidden print:block w-7 h-5 border-2 rounded shrink-0" style={{ borderColor: "var(--color-grout-strong)" }} />
+                {/* Print-only empty checkbox */}
+                <div className="hidden print:block col-span-1 w-5 h-5 border-2 rounded" style={{ borderColor: "var(--color-grout-strong)" }} />
 
-                {/* Tile name — takes all remaining space */}
-                <div className="flex-1 min-w-0">
+                <div className="col-span-6 print:col-span-7 min-w-0">
                   <p className="text-sm truncate" style={{
                     color: "var(--color-ink)",
                     textDecoration: item.loaded ? "line-through" : "none",
@@ -201,39 +205,31 @@ export default function OrderDetailPage() {
                   </p>
                 </div>
 
-                {/* Boxes — fixed width, right aligned */}
-                <div className="w-20 text-right shrink-0">
+                <div className="col-span-2 text-right">
                   <span className="font-[family-name:var(--font-mono)] text-sm">{item.boxes}</span>
                   <span className="text-xs ml-1" style={{ color: "var(--color-ink-soft)" }}>bx</span>
                 </div>
 
-                {/* Amount — only when showPrices */}
+                <div className="col-span-2 text-right print:hidden">
+                  {showPrices && item.price_per_box > 0 && (
+                    <span className="text-sm font-[family-name:var(--font-mono)]" style={{ color: "var(--color-ink-soft)" }}>
+                      ₹{(item.boxes * item.price_per_box).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                    </span>
+                  )}
+                </div>
 
-                {showPrices && (
-                  <div className="w-24 text-right shrink-0" data-print="hidden">
-                    {item.price_per_box > 0 && (
-                      <span className="text-sm font-[family-name:var(--font-mono)]" style={{ color: "var(--color-ink-soft)" }}>
-                        ₹{(item.boxes * item.price_per_box).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-                      </span>
-                    )}
-                  </div>
-                )}
+                <div className="col-span-1 print:hidden" />
               </div>
             ))}
           </div>
 
-          {/* Totals */}
           {/* Totals */}
           <div className="px-4 py-3 flex items-center justify-between" style={{ borderTop: "1px solid var(--color-grout)", background: "var(--color-kiln-dim)" }}>
             <span className="text-sm font-medium" style={{ color: "var(--color-ink)" }}>Total</span>
             <div className="flex items-center gap-4">
               <span className="font-[family-name:var(--font-mono)] text-sm">{totalBoxes} boxes</span>
               {showPrices && totalValue > 0 && (
-                <span
-                  className="font-[family-name:var(--font-mono)] text-sm font-medium"
-                  style={{ color: "var(--color-ink)" }}
-                  data-print="hidden"
-                >
+                <span className="font-[family-name:var(--font-mono)] text-sm font-medium print:hidden" style={{ color: "var(--color-ink)" }}>
                   ₹{totalValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
                 </span>
               )}
@@ -255,7 +251,7 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Actions — screen only */}
         {order.status !== "delivered" && order.status !== "cancelled" && (
           <div className="flex gap-3 print:hidden">
             {STATUS_FLOW[order.status] && (

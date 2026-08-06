@@ -83,7 +83,9 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (!isLoggedIn()) {
-      router.push("/login");
+      // Preserve the destination — a QR scan lands here, and dropping the
+      // product id would send the scanner to a bare dashboard instead.
+      router.push(`/login?next=${encodeURIComponent(`/products/${id}`)}`);
       return;
     }
     load();
