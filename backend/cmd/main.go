@@ -17,6 +17,8 @@ import (
 
 func main() {
 	_ = godotenv.Load()
+	// Migrations run automatically on startup from
+	// backend/internal/db/migrations/*.sql — add new .sql files there.
 	dbx := db.Connect()
 	defer dbx.Close()
 

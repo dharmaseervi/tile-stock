@@ -20,11 +20,13 @@ type User struct {
 type Product struct {
 	ID           string    `db:"id" json:"id"`
 	OrgID        string    `db:"org_id" json:"org_id"`
+	Category     string    `db:"category" json:"category"`
 	Brand        string    `db:"brand" json:"brand"`
 	SeriesName   string    `db:"series_name" json:"series_name"`
 	Size         string    `db:"size" json:"size"`
 	Finish       *string   `db:"finish" json:"finish"`
 	HSNCode      *string   `db:"hsn_code" json:"hsn_code"`
+	Unit         string    `db:"unit" json:"unit"`
 	PiecesPerBox int       `db:"pieces_per_box" json:"pieces_per_box"`
 	SqftPerBox   *float64  `db:"sqft_per_box" json:"sqft_per_box"`
 	ReorderLevel int       `db:"reorder_level" json:"reorder_level"`
@@ -33,8 +35,10 @@ type Product struct {
 	ImageURL     *string   `db:"image_url" json:"image_url"`
 	SupplierID   *string   `db:"supplier_id" json:"supplier_id"`
 	BranchID     *string   `db:"branch_id" json:"branch_id"`
+	Location     *string   `db:"location" json:"location"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 }
+
 type Batch struct {
 	ID         string     `db:"id" json:"id"`
 	OrgID      string     `db:"org_id" json:"org_id"`

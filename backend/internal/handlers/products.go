@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -14,12 +15,15 @@ import (
 type ProductHandler struct{ DB *sqlx.DB }
 
 type productReq struct {
+	Category     string      `json:"category"`
 	Brand        string      `json:"brand" binding:"required"`
 	SeriesName   string      `json:"series_name" binding:"required"`
-	Size         string      `json:"size" binding:"required"`
+	Size         string      `json:"size"`
 	Finish       string      `json:"finish"`
 	HSNCode      string      `json:"hsn_code"`
-	PiecesPerBox int         `json:"pieces_per_box" binding:"required,min=1"`
+	Unit         string      `json:"unit"`
+	Location     string      `json:"location"`
+	PiecesPerBox int         `json:"pieces_per_box"`
 	SqftPerBox   interface{} `json:"sqft_per_box"`
 	ReorderLevel interface{} `json:"reorder_level"`
 	PricePerBox  interface{} `json:"price_per_box"`
@@ -56,21 +60,37 @@ func (h *ProductHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	log.Printf("create product: category=%q brand=%q series=%q size=%q unit=%q",
+		req.Category, req.Brand, req.SeriesName, req.Size, req.Unit)
 
+	category := req.Category
+	if category == "" {
+		category = "tile"
+	}
+	unit := req.Unit
+	if unit == "" {
+		unit = "box"
+	}
+	pieces := req.PiecesPerBox
+	if pieces == 0 {
+		pieces = 1
+	}
 	id := uuid.NewString()
 	_, err := h.DB.Exec(
-		`INSERT INTO products (id, org_id, brand, series_name, size, finish, hsn_code,
-		 pieces_per_box, sqft_per_box, reorder_level, price_per_box, cost_price, image_url)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-		id, orgID,
+		`INSERT INTO products (id, org_id, category, brand, series_name, size, finish, hsn_code,
+		 unit, pieces_per_box, sqft_per_box, reorder_level, price_per_box, cost_price, image_url, location)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+		id, orgID, category,
 		req.Brand, req.SeriesName, req.Size, req.Finish, req.HSNCode,
-		req.PiecesPerBox, toFloat(req.SqftPerBox), toInt(req.ReorderLevel),
-		toFloat(req.PricePerBox), toFloat(req.CostPrice), req.ImageURL,
+		unit, pieces, toFloat(req.SqftPerBox), toInt(req.ReorderLevel),
+		toFloat(req.PricePerBox), toFloat(req.CostPrice), req.ImageURL, req.Location,
 	)
 	if err != nil {
+		log.Printf("INSERT error: %v", err)
 		c.JSON(http.StatusConflict, gin.H{"error": "product already exists for this brand/series/size/finish"})
 		return
 	}
+
 	c.JSON(http.StatusCreated, gin.H{"id": id})
 }
 
@@ -122,14 +142,14 @@ func (h *ProductHandler) Update(c *gin.Context) {
 	}
 
 	res, err := h.DB.Exec(
-		`UPDATE products SET brand=$1, series_name=$2, size=$3, finish=$4, hsn_code=$5,
-		 pieces_per_box=$6, sqft_per_box=$7, reorder_level=$8, price_per_box=$9, cost_price=$10,
-		 image_url=COALESCE(NULLIF($11,''), image_url)
-		 WHERE id=$12 AND org_id=$13`,
-		req.Brand, req.SeriesName, req.Size, req.Finish, req.HSNCode,
-		req.PiecesPerBox, toFloat(req.SqftPerBox), toInt(req.ReorderLevel),
+		`UPDATE products SET category=$1, brand=$2, series_name=$3, size=$4, finish=$5, hsn_code=$6,
+		 unit=$7, pieces_per_box=$8, sqft_per_box=$9, reorder_level=$10, price_per_box=$11, cost_price=$12,
+		 image_url=COALESCE(NULLIF($13,''), image_url), location=$14
+		 WHERE id=$15 AND org_id=$16`,
+		req.Category, req.Brand, req.SeriesName, req.Size, req.Finish, req.HSNCode,
+		req.Unit, req.PiecesPerBox, toFloat(req.SqftPerBox), toInt(req.ReorderLevel),
 		toFloat(req.PricePerBox), toFloat(req.CostPrice),
-		req.ImageURL, id, orgID,
+		req.ImageURL, req.Location, id, orgID,
 	)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "update failed — duplicate brand/series/size/finish?"})

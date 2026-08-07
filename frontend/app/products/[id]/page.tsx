@@ -18,6 +18,7 @@ type Product = {
   size: string;
   finish: string | null;
   hsn_code: string | null;
+  location: string | null;
   pieces_per_box: number;
   sqft_per_box: number | null;
   reorder_level: number;
@@ -72,6 +73,7 @@ export default function ProductDetailPage() {
           size: detail.product.size,
           finish: detail.product.finish || "",
           hsn_code: detail.product.hsn_code || "",
+          location: detail.product.location || "",
           pieces_per_box: detail.product.pieces_per_box,
           sqft_per_box: detail.product.sqft_per_box ?? "",
           reorder_level: detail.product.reorder_level,
@@ -194,6 +196,11 @@ export default function ProductDetailPage() {
                 <p className="text-sm mt-0.5" style={{ color: "var(--color-ink-soft)" }}>
                   {product.size}{product.finish ? ` · ${product.finish}` : ""}{product.hsn_code ? ` · HSN ${product.hsn_code}` : ""}
                 </p>
+                {product.location && (
+                  <p className="text-xs mt-1 flex items-center gap-1" style={{ color: "var(--color-glaze-deep)" }}>
+                    📍 {product.location}
+                  </p>
+                )}
               </div>
               <div className="flex gap-2 shrink-0">
                 <button
@@ -320,6 +327,8 @@ export default function ProductDetailPage() {
               onChange={(e) => setForm({ ...form, finish: e.target.value })} className={inputClass} style={inputStyle} />
             <input placeholder="HSN code" value={form.hsn_code}
               onChange={(e) => setForm({ ...form, hsn_code: e.target.value })} className={inputClass} style={inputStyle} />
+            <input placeholder="Godown location (Rack B3, Front wall…)" value={form.location}
+              onChange={(e) => setForm({ ...form, location: e.target.value })} className={`${inputClass} col-span-2`} style={inputStyle} />
             <input type="number" min={1} placeholder="Pieces per box" required value={form.pieces_per_box}
               onChange={(e) => setForm({ ...form, pieces_per_box: parseInt(e.target.value) || 1 })} className={inputClass} style={inputStyle} />
             <input type="number" step="0.01" placeholder="Sq.ft per box" value={form.sqft_per_box}
@@ -328,6 +337,8 @@ export default function ProductDetailPage() {
               onChange={(e) => setForm({ ...form, reorder_level: parseInt(e.target.value) || 0 })} className={inputClass} style={inputStyle} />
             <input type="number" step="0.01" min={0} placeholder="Price per box (₹)" value={form.price_per_box}
               onChange={(e) => setForm({ ...form, price_per_box: e.target.value })} className={inputClass} style={inputStyle} />
+            <input type="number" step="0.01" min={0} placeholder="Cost price per box (₹)" value={form.cost_price || ""}
+              onChange={(e) => setForm({ ...form, cost_price: e.target.value })} className={inputClass} style={inputStyle} />
 
             {/* Photo upload */}
             <div className="col-span-2 flex items-center gap-3">

@@ -87,43 +87,108 @@ func (h *CustomerHandler) GetLedger(c *gin.Context) {
 	orgID := c.GetString("org_id")
 	id := c.Param("id")
 
+	// Customer details
 	var customer struct {
 		ID          string  `db:"id" json:"id"`
 		Name        string  `db:"name" json:"name"`
 		Phone       *string `db:"phone" json:"phone"`
+		Address     *string `db:"address" json:"address"`
 		CreditLimit float64 `db:"credit_limit" json:"credit_limit"`
+		Notes       *string `db:"notes" json:"notes"`
 	}
-	if err := h.DB.Get(&customer, `SELECT id, name, phone, credit_limit FROM customers WHERE id=$1 AND org_id=$2`, id, orgID); err != nil {
+	if err := h.DB.Get(&customer,
+		`SELECT id, name, phone, address, credit_limit, notes FROM customers WHERE id=$1 AND org_id=$2`,
+		id, orgID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "customer not found"})
 		return
 	}
 
+	// Orders with payment status
 	var orders []struct {
 		ID            string  `db:"id" json:"id"`
 		ChallanNumber string  `db:"challan_number" json:"challan_number"`
 		Status        string  `db:"status" json:"status"`
+		TotalBoxes    float64 `db:"total_boxes" json:"total_boxes"`
 		TotalValue    float64 `db:"total_value" json:"total_value"`
+		TotalCost     float64 `db:"total_cost" json:"total_cost"`
+		Paid          float64 `db:"paid" json:"paid"`
 		CreatedAt     string  `db:"created_at" json:"created_at"`
 	}
 	h.DB.Select(&orders, `
-		SELECT o.id, o.challan_number, o.status,
+		SELECT
+			o.id,
+			o.challan_number,
+			o.status,
+			COALESCE(SUM(oi.boxes), 0) AS total_boxes,
 			COALESCE(SUM(oi.boxes * oi.price_per_box), 0) AS total_value,
-			o.created_at::text
+			COALESCE(SUM(oi.boxes * p.cost_price), 0) AS total_cost,
+			0 AS paid
 		FROM orders o
 		LEFT JOIN order_items oi ON oi.order_id = o.id
-		WHERE o.customer_id=$1 AND o.org_id=$2
+		LEFT JOIN products p ON p.id = oi.product_id
+		WHERE o.customer_id=$1 AND o.org_id=$2 AND o.status != 'cancelled'
 		GROUP BY o.id
 		ORDER BY o.created_at DESC
 	`, id, orgID)
 
+	// Shade history — every distinct lot a customer has received
+	var shades []struct {
+		LotNumber  string  `db:"lot_number" json:"lot_number"`
+		Brand      string  `db:"brand" json:"brand"`
+		SeriesName string  `db:"series_name" json:"series_name"`
+		Size       string  `db:"size" json:"size"`
+		Finish     *string `db:"finish" json:"finish"`
+		Boxes      float64 `db:"boxes" json:"boxes"`
+		ChallanNum string  `db:"challan_number" json:"challan_number"`
+		OrderedAt  string  `db:"ordered_at" json:"ordered_at"`
+	}
+	h.DB.Select(&shades, `
+		SELECT
+			b.lot_number,
+			p.brand,
+			p.series_name,
+			p.size,
+			p.finish,
+			oi.boxes,
+			o.challan_number,
+			o.created_at::text AS ordered_at
+		FROM orders o
+		JOIN order_items oi ON oi.order_id = o.id
+		JOIN products p ON p.id = oi.product_id
+		LEFT JOIN batches b ON b.product_id = p.id
+		WHERE o.customer_id=$1 AND o.org_id=$2
+			AND o.status NOT IN ('cancelled','draft')
+			AND b.lot_number IS NOT NULL
+		ORDER BY o.created_at DESC
+	`, id, orgID)
+
+	// Compute totals
 	totalValue := 0.0
+	totalCost := 0.0
+	totalPaid := 0.0
+	totalBoxes := 0.0
 	for _, o := range orders {
 		totalValue += o.TotalValue
+		totalCost += o.TotalCost
+		totalPaid += o.Paid
+		totalBoxes += o.TotalBoxes
 	}
 
+	outstanding := totalValue - totalPaid
+	grossProfit := totalValue - totalCost
+	margin := 0.0
+	if totalValue > 0 {
+		margin = (grossProfit / totalValue) * 100
+	}
 	c.JSON(http.StatusOK, gin.H{
-		"customer":    customer,
-		"orders":      orders,
-		"total_value": totalValue,
+		"customer":     customer,
+		"orders":       orders,
+		"shades":       shades,
+		"total_value":  totalValue,
+		"total_cost":   totalCost,
+		"total_boxes":  totalBoxes,
+		"outstanding":  outstanding,
+		"gross_profit": grossProfit,
+		"margin":       margin,
 	})
 }

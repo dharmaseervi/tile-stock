@@ -108,16 +108,54 @@ export default function AnalyticsPage() {
   const router = useRouter();
   const [stats, setStats] = useState<ProductStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
 
-  useEffect(() => {
-    if (!isLoggedIn()) {
-      router.push("/login");
-      return;
+  function getDateRange(p: string): { from?: string; to?: string } {
+    const now = new Date();
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    if (p === "this_month") {
+      return { from: fmt(new Date(now.getFullYear(), now.getMonth(), 1)) };
     }
-    api.analytics()
+    if (p === "last_month") {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { from: fmt(start), to: fmt(end) };
+    }
+    if (p === "last_30") {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 30);
+      return { from: fmt(d) };
+    }
+    if (p === "last_90") {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 90);
+      return { from: fmt(d) };
+    }
+    if (p === "custom") {
+      return { from: customFrom || undefined, to: customTo || undefined };
+    }
+    return {};
+  }
+
+  function load() {
+    setLoading(true);
+    const { from, to } = getDateRange(period);
+    api.analytics(from, to)
       .then((data) => setStats(data.products ?? []))
       .finally(() => setLoading(false));
-  }, [router]);
+  }
+
+  useEffect(() => {
+    if (!isLoggedIn()) { router.push("/login"); return; }
+    load();
+  }, [router, period]);
+
+  // Custom range: only fetch when both dates are set
+  useEffect(() => {
+    if (period === "custom" && customFrom) load();
+  }, [customFrom, customTo]);
 
   const SIXTY_DAYS_AGO = Date.now() - 60 * 24 * 60 * 60 * 1000;
 
@@ -186,9 +224,51 @@ export default function AnalyticsPage() {
       <Nav />
       <main className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6 pb-10">
 
-        <h1 className="font-[family-name:var(--font-display)] text-2xl" style={{ color: "var(--color-ink)" }}>
-          Analytics
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-[family-name:var(--font-display)] text-2xl" style={{ color: "var(--color-ink)" }}>
+            Analytics
+          </h1>
+
+          {/* Period filter */}
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { key: "this_month", label: "This month" },
+              { key: "last_month", label: "Last month" },
+              { key: "last_30",   label: "30 days" },
+              { key: "last_90",   label: "90 days" },
+              { key: "all",       label: "All time" },
+              { key: "custom",    label: "Custom" },
+            ].map((p) => (
+              <button
+                key={p.key}
+                onClick={() => setPeriod(p.key)}
+                className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
+                style={period === p.key
+                  ? { background: "var(--color-glaze)", color: "#fff" }
+                  : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom date inputs */}
+          {period === "custom" && (
+            <div className="flex gap-2 items-center w-full sm:w-auto">
+              <input
+                type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
+                className="border rounded-md px-3 py-1.5 text-sm outline-none"
+                style={{ borderColor: "var(--color-grout)" }}
+              />
+              <span className="text-xs" style={{ color: "var(--color-ink-soft)" }}>to</span>
+              <input
+                type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
+                className="border rounded-md px-3 py-1.5 text-sm outline-none"
+                style={{ borderColor: "var(--color-grout)" }}
+              />
+            </div>
+          )}
+        </div>
 
         {/* Summary stat cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

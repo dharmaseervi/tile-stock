@@ -310,9 +310,22 @@ type productStat struct {
 
 func (h *StockHandler) Analytics(c *gin.Context) {
 	orgID := c.GetString("org_id")
+	dateFrom := c.Query("from")
+	dateTo := c.Query("to")
 
-	var stats []productStat
-	err := h.DB.Select(&stats, `
+	// Build date filter for movements
+	movFilter := ""
+	movArgs := []interface{}{orgID}
+	if dateFrom != "" {
+		movFilter += fmt.Sprintf(" AND m.created_at >= $%d", len(movArgs)+1)
+		movArgs = append(movArgs, dateFrom)
+	}
+	if dateTo != "" {
+		movFilter += fmt.Sprintf(" AND m.created_at < $%d", len(movArgs)+1)
+		movArgs = append(movArgs, dateTo)
+	}
+
+	query := fmt.Sprintf(`
 		SELECT
 			p.id AS product_id,
 			p.brand,
@@ -326,11 +339,14 @@ func (h *StockHandler) Analytics(c *gin.Context) {
 			COALESCE(SUM(CASE WHEN m.movement_type='out' THEN m.boxes ELSE 0 END), 0) * p.price_per_box AS revenue,
 			MAX(m.created_at::text) AS last_moved_at
 		FROM products p
-		LEFT JOIN stock_movements m ON m.product_id = p.id AND m.org_id = $1
+		LEFT JOIN stock_movements m ON m.product_id = p.id AND m.org_id = $1%s
 		WHERE p.org_id = $1
 		GROUP BY p.id
 		ORDER BY turnover DESC
-	`, orgID)
+	`, movFilter)
+
+	var stats []productStat
+	err := h.DB.Select(&stats, query, movArgs...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "analytics failed"})
 		return

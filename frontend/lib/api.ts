@@ -89,7 +89,13 @@ export const api = {
     if (to) params.set("to", to);
     return request(`/stock/dashboard-stats?${params}`);
   },
-  analytics: () => request("/stock/analytics"),
+  analytics: (from?: string, to?: string) => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const q = params.toString();
+    return request(`/stock/analytics${q ? `?${q}` : ""}`);
+  },
   recordMovement: (data: any) =>
     request("/stock/movements", { method: "POST", body: JSON.stringify(data) }),
   exportCSV: (from?: string, to?: string) => {

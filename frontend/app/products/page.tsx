@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ImageOff, Package, Search, X } from "lucide-react";
+import { Plus, Trash2, ImageOff, Package, Search, X, SlidersHorizontal } from "lucide-react";
 import { api, isLoggedIn } from "@/lib/api";
 import { uploadProductPhoto } from "@/lib/supabase";
 import { TILE_SIZES, calcSqftPerBox } from "@/lib/tileSizes";
@@ -31,11 +31,24 @@ type Product = {
   price_per_box: number;
   cost_price: number;
   image_url: string | null;
+  boxes_in_stock: number;
 };
 
 const inputClass =
   "border rounded-md px-3 py-2 text-sm outline-none focus:ring-2";
 const inputStyle = { borderColor: "var(--color-grout)", ["--tw-ring-color" as any]: "var(--color-glaze)" };
+
+function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full"
+      style={{ background: "var(--color-glaze-tint)", color: "var(--color-glaze-deep)" }}>
+      {label}
+      <button onClick={onRemove} className="ml-0.5 hover:opacity-70">
+        <X size={11} />
+      </button>
+    </span>
+  );
+}
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -44,18 +57,26 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
   const [showForm, setShowForm] = useState(false);
+  const [formCategory, setFormCategory] = useState<"tile" | "material" | "sanitary">("tile");
   const [form, setForm] = useState({
     brand: "",
     series_name: "",
     size: "",
     finish: "",
     hsn_code: "",
+    unit: "box",
+    location: "",
     pieces_per_box: 1,
     sqft_per_box: "",
     reorder_level: 10,
     price_per_box: "",
     cost_price: "",
   });
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [stockStatus, setStockStatus] = useState<"all" | "instock" | "low" | "out">("all");
   const [error, setError] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -66,6 +87,11 @@ export default function ProductsPage() {
   const [activeBrand, setActiveBrand] = useState<string | null>(null);
   const [activeSize, setActiveSize] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; label: string } | null>(null);
+
+  const activeFilterCount = [
+    activeBrand, activeSize, activeFinish, activeCategory,
+    minPrice, maxPrice, stockStatus !== "all" ? stockStatus : null,
+  ].filter(Boolean).length;
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] || null;
@@ -122,7 +148,15 @@ export default function ProductsPage() {
     const matchesFinish = !activeFinish || p.finish === activeFinish;
     const matchesBrand = !activeBrand || p.brand === activeBrand;
     const matchesSize = !activeSize || p.size === activeSize;
-    return matchesSearch && matchesFinish && matchesBrand && matchesSize;
+    const matchesCategory = !activeCategory || (p as any).category === activeCategory;
+    const matchesMinPrice = !minPrice || p.price_per_box >= parseFloat(minPrice);
+    const matchesMaxPrice = !maxPrice || p.price_per_box <= parseFloat(maxPrice);
+    const matchesStock = stockStatus === "all" ? true :
+      stockStatus === "instock" ? p.boxes_in_stock > p.reorder_level :
+      stockStatus === "low" ? (p.boxes_in_stock > 0 && p.boxes_in_stock <= p.reorder_level) :
+      p.boxes_in_stock === 0;
+    return matchesSearch && matchesFinish && matchesBrand && matchesSize &&
+      matchesCategory && matchesMinPrice && matchesMaxPrice && matchesStock;
   });
 
   const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE);
@@ -131,7 +165,7 @@ export default function ProductsPage() {
   // Only show pills for values actually present in this dealer's products.
   const finishPills = Array.from(new Set(products.map((p) => p.finish).filter(Boolean))) as string[];
   const brandPills = Array.from(new Set(products.map((p) => p.brand))).sort();
-  const sizePills = Array.from(new Set(products.map((p) => p.size))).sort();
+  const sizePills = Array.from(new Set(products.map((p) => p.size).filter(Boolean))).sort();
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -153,11 +187,13 @@ export default function ProductsPage() {
       }
       await api.createProduct({
         ...form,
+        category: formCategory,
         sqft_per_box: form.sqft_per_box ? parseFloat(form.sqft_per_box) : undefined,
         price_per_box: form.price_per_box ? parseFloat(form.price_per_box) : 0,
         image_url,
       });
-      setForm({ brand: "", series_name: "", size: "", finish: "", hsn_code: "", pieces_per_box: 1, sqft_per_box: "", reorder_level: 10, price_per_box: "", cost_price: "" });
+      setForm({ brand: "", series_name: "", size: "", finish: "", hsn_code: "", unit: "box", location: "", pieces_per_box: 1, sqft_per_box: "", reorder_level: 10, price_per_box: "", cost_price: "" });
+      setFormCategory("tile");
       setIsCustomSize(false);
       setPhoto(null);
       setPhotoPreview(null);
@@ -212,6 +248,28 @@ export default function ProductsPage() {
         {showForm && (
           <form onSubmit={handleAdd} className="bg-white rounded-xl grout-border overflow-hidden">
 
+            {/* Category switcher */}
+            <div className="flex border-b" style={{ borderColor: "var(--color-grout)" }}>
+              {([
+                { key: "tile",      label: "🪟 Tile",     desc: "Glazed / ceramic / porcelain" },
+                { key: "material",  label: "🧪 Material",  desc: "Adhesive, grout, epoxy, wash" },
+                { key: "sanitary",  label: "🚿 Sanitary",  desc: "Commode, faucet, basin" },
+              ] as const).map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setFormCategory(c.key)}
+                  className="flex-1 py-3 px-2 text-center transition-colors"
+                  style={formCategory === c.key
+                    ? { background: "var(--color-glaze-tint)", borderBottom: "2px solid var(--color-glaze)", color: "var(--color-glaze-deep)" }
+                    : { color: "var(--color-ink-soft)", borderBottom: "2px solid transparent" }}
+                >
+                  <p className="text-sm font-medium">{c.label}</p>
+                  <p className="text-[11px] mt-0.5 hidden sm:block" style={{ color: "var(--color-ink-soft)" }}>{c.desc}</p>
+                </button>
+              ))}
+            </div>
+
             {/* Photo hero */}
             <div
               className="relative flex items-center justify-center"
@@ -260,8 +318,11 @@ export default function ProductsPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-ink-soft)" }}>Identity</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Brand</label>
-                    <input placeholder="Kajaria, Somany…" required value={form.brand} list="brand-suggestions"
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>
+                      Brand
+                      <span className="ml-1 font-normal" style={{ color: "var(--color-glaze)" }}>— type any name</span>
+                    </label>
+                    <input placeholder="Kajaria, Somany, or new brand…" required value={form.brand} list="brand-suggestions"
                       onChange={(e) => setForm({ ...form, brand: e.target.value })}
                       className={`${inputClass} w-full`} style={inputStyle} />
                     <datalist id="brand-suggestions">
@@ -277,7 +338,8 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {/* Dimensions */}
+              {/* Dimensions — tile only */}
+              {formCategory === "tile" && (
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-ink-soft)" }}>Dimensions</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -325,6 +387,39 @@ export default function ProductsPage() {
                   </div>
                 </div>
               </div>
+              )}
+
+              {/* Unit — materials and sanitary */}
+              {formCategory !== "tile" && (
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-ink-soft)" }}>
+                  {formCategory === "material" ? "Packaging" : "Specifications"}
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Unit</label>
+                    <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                      className={`${inputClass} w-full`} style={inputStyle}>
+                      {formCategory === "material"
+                        ? ["bag", "kg", "litre", "box", "piece", "set"].map((u) => <option key={u} value={u}>{u}</option>)
+                        : ["piece", "set", "pair"].map((u) => <option key={u} value={u}>{u}</option>)
+                      }
+                    </select>
+                    <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-soft)" }}>
+                      e.g. "25 bags of adhesive"
+                    </p>
+                  </div>
+                  {formCategory === "sanitary" && (
+                    <div>
+                      <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Model / Colour</label>
+                      <input placeholder="e.g. White, Chrome, EWC 001" value={form.finish}
+                        onChange={(e) => setForm({ ...form, finish: e.target.value })}
+                        className={`${inputClass} w-full`} style={inputStyle} />
+                    </div>
+                  )}
+                </div>
+              </div>
+              )}
 
               {/* Stock & pricing */}
               <div>
@@ -357,6 +452,13 @@ export default function ProductsPage() {
                       onChange={(e) => setForm({ ...form, hsn_code: e.target.value })}
                       className={`${inputClass} w-full`} style={inputStyle} />
                   </div>
+                  <div>
+                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Godown location</label>
+                    <input placeholder="Rack B3, Front wall left…" value={form.location}
+                      onChange={(e) => setForm({ ...form, location: e.target.value })}
+                      className={`${inputClass} w-full`} style={inputStyle} />
+                    <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-soft)" }}>Where to find it in the godown</p>
+                  </div>
                 </div>
               </div>
 
@@ -377,101 +479,218 @@ export default function ProductsPage() {
           </form>
         )}
 
-        <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-ink-soft)" }} />
-          <input
-            type="text"
-            placeholder="Search by brand, series, size, or finish…"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full rounded-md pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 grout-border"
-            style={{ ["--tw-ring-color" as any]: "var(--color-glaze)" }}
-          />
+        {/* Search + filter button */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-ink-soft)" }} />
+            <input
+              type="text"
+              placeholder="Search brand, series, size, finish…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="w-full rounded-md pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 grout-border"
+              style={{ ["--tw-ring-color" as any]: "var(--color-glaze)" }}
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters(true)}
+            className="relative flex items-center gap-1.5 px-3 py-2 rounded-md text-sm grout-border bg-white transition-colors hover:bg-[var(--color-kiln-dim)]"
+            style={{ color: activeFilterCount > 0 ? "var(--color-glaze-deep)" : "var(--color-ink-soft)" }}
+          >
+            <SlidersHorizontal size={15} />
+            <span className="hidden sm:inline">Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center text-white"
+                style={{ background: "var(--color-glaze)" }}>
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {(brandPills.length > 0 || sizePills.length > 0 || finishPills.length > 0) && (
-          <div className="space-y-2">
-            {brandPills.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs w-14 shrink-0" style={{ color: "var(--color-ink-soft)" }}>Brand</span>
-                <button
-                  onClick={() => setActiveBrand(null)}
-                  className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
-                  style={activeBrand === null
-                    ? { background: "var(--color-glaze)", color: "white" }
-                    : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
-                >
-                  All
-                </button>
-                {brandPills.map((b) => (
-                  <button
-                    key={b}
-                    onClick={() => setActiveBrand(activeBrand === b ? null : b)}
-                    className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
-                    style={activeBrand === b
-                      ? { background: "var(--color-glaze)", color: "white" }
-                      : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
-                  >
-                    {b}
-                  </button>
-                ))}
-              </div>
-            )}
-            {sizePills.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs w-14 shrink-0" style={{ color: "var(--color-ink-soft)" }}>Size</span>
-                <button
-                  onClick={() => setActiveSize(null)}
-                  className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
-                  style={activeSize === null
-                    ? { background: "var(--color-glaze)", color: "white" }
-                    : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
-                >
-                  All
-                </button>
-                {sizePills.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setActiveSize(activeSize === s ? null : s)}
-                    className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors font-[family-name:var(--font-mono)]"
-                    style={activeSize === s
-                      ? { background: "var(--color-glaze)", color: "white" }
-                      : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
-            {finishPills.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs w-14 shrink-0" style={{ color: "var(--color-ink-soft)" }}>Finish</span>
-                <button
-                  onClick={() => setActiveFinish(null)}
-                  className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
-                  style={activeFinish === null
-                    ? { background: "var(--color-glaze)", color: "white" }
-                    : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
-                >
-                  All
-                </button>
-                {finishPills.map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setActiveFinish(activeFinish === f ? null : f)}
-                    className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
-                    style={activeFinish === f
-                      ? { background: "var(--color-glaze)", color: "white" }
-                      : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-            )}
+        {/* Active filter chips */}
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs" style={{ color: "var(--color-ink-soft)" }}>Filtered:</span>
+            {activeBrand && <Chip label={activeBrand} onRemove={() => { setActiveBrand(null); setPage(1); }} />}
+            {activeSize && <Chip label={activeSize} onRemove={() => { setActiveSize(null); setPage(1); }} />}
+            {activeFinish && <Chip label={activeFinish} onRemove={() => { setActiveFinish(null); setPage(1); }} />}
+            {activeCategory && <Chip label={activeCategory} onRemove={() => { setActiveCategory(null); setPage(1); }} />}
+            {minPrice && <Chip label={`≥ ₹${minPrice}`} onRemove={() => { setMinPrice(""); setPage(1); }} />}
+            {maxPrice && <Chip label={`≤ ₹${maxPrice}`} onRemove={() => { setMaxPrice(""); setPage(1); }} />}
+            {stockStatus !== "all" && <Chip label={stockStatus} onRemove={() => { setStockStatus("all"); setPage(1); }} />}
+            <button onClick={() => {
+              setActiveBrand(null); setActiveSize(null); setActiveFinish(null);
+              setActiveCategory(null); setMinPrice(""); setMaxPrice("");
+              setStockStatus("all"); setPage(1);
+            }} className="text-xs" style={{ color: "var(--color-oxide)" }}>
+              Clear all
+            </button>
           </div>
         )}
 
+        {/* Filter modal */}
+        {showFilters && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,.4)" }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowFilters(false); }}>
+            <div className="bg-white rounded-xl w-full max-w-sm shadow-xl overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b"
+                style={{ borderColor: "var(--color-grout)" }}>
+                <h2 className="font-medium text-sm" style={{ color: "var(--color-ink)" }}>Filter products</h2>
+                <button onClick={() => setShowFilters(false)} style={{ color: "var(--color-ink-soft)" }}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="px-5 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
+                {/* Category */}
+                <div>
+                  <p className="text-xs font-medium mb-2" style={{ color: "var(--color-ink-soft)" }}>Type</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { key: null, label: "All" },
+                      { key: "tile", label: "🪟 Tiles" },
+                      { key: "material", label: "🧪 Materials" },
+                      { key: "sanitary", label: "🚿 Sanitary" },
+                    ].map(({ key, label }) => (
+                      <button key={String(key)}
+                        onClick={() => setActiveCategory(key)}
+                        className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
+                        style={activeCategory === key
+                          ? { background: "var(--color-glaze)", color: "white" }
+                          : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Brand */}
+                {brandPills.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium mb-2" style={{ color: "var(--color-ink-soft)" }}>Brand</p>
+                    <select value={activeBrand ?? ""}
+                      onChange={(e) => setActiveBrand(e.target.value || null)}
+                      className="w-full border rounded-md px-3 py-2 text-sm outline-none"
+                      style={{ borderColor: "var(--color-grout)" }}>
+                      <option value="">All brands</option>
+                      {brandPills.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {/* Size */}
+                {sizePills.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium mb-2" style={{ color: "var(--color-ink-soft)" }}>Size</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => setActiveSize(null)}
+                        className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors font-[family-name:var(--font-mono)]"
+                        style={activeSize === null
+                          ? { background: "var(--color-glaze)", color: "white" }
+                          : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                        All
+                      </button>
+                      {sizePills.map((s) => (
+                        <button key={s} onClick={() => setActiveSize(activeSize === s ? null : s)}
+                          className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors font-[family-name:var(--font-mono)]"
+                          style={activeSize === s
+                            ? { background: "var(--color-glaze)", color: "white" }
+                            : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Finish */}
+                {finishPills.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium mb-2" style={{ color: "var(--color-ink-soft)" }}>Finish</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => setActiveFinish(null)}
+                        className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
+                        style={activeFinish === null
+                          ? { background: "var(--color-glaze)", color: "white" }
+                          : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                        All
+                      </button>
+                      {finishPills.map((f) => (
+                        <button key={f} onClick={() => setActiveFinish(activeFinish === f ? null : f)}
+                          className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
+                          style={activeFinish === f
+                            ? { background: "var(--color-glaze)", color: "white" }
+                            : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Price range */}
+                <div>
+                  <p className="text-xs font-medium mb-2" style={{ color: "var(--color-ink-soft)" }}>Price per box (₹)</p>
+                  <div className="flex gap-2 items-center">
+                    <input type="number" placeholder="Min" value={minPrice}
+                      onChange={(e) => setMinPrice(e.target.value)}
+                      className="flex-1 border rounded-md px-3 py-2 text-sm outline-none font-[family-name:var(--font-mono)]"
+                      style={{ borderColor: "var(--color-grout)" }} />
+                    <span className="text-xs" style={{ color: "var(--color-ink-soft)" }}>to</span>
+                    <input type="number" placeholder="Max" value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value)}
+                      className="flex-1 border rounded-md px-3 py-2 text-sm outline-none font-[family-name:var(--font-mono)]"
+                      style={{ borderColor: "var(--color-grout)" }} />
+                  </div>
+                </div>
+
+                {/* Stock status */}
+                <div>
+                  <p className="text-xs font-medium mb-2" style={{ color: "var(--color-ink-soft)" }}>Stock status</p>
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { key: "all",     label: "All" },
+                      { key: "instock", label: "✓ In stock" },
+                      { key: "low",     label: "⚠ Low stock" },
+                      { key: "out",     label: "✕ Out of stock" },
+                    ] as const).map(({ key, label }) => (
+                      <button key={key} onClick={() => setStockStatus(key)}
+                        className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
+                        style={stockStatus === key
+                          ? { background: "var(--color-glaze)", color: "white" }
+                          : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t flex gap-3" style={{ borderColor: "var(--color-grout)" }}>
+                <button
+                  onClick={() => {
+                    setActiveBrand(null); setActiveSize(null); setActiveFinish(null);
+                    setActiveCategory(null); setMinPrice(""); setMaxPrice("");
+                    setStockStatus("all"); setPage(1);
+                  }}
+                  className="flex-1 py-2 rounded-md text-sm grout-border"
+                  style={{ color: "var(--color-ink-soft)" }}>
+                  Clear all
+                </button>
+                <button
+                  onClick={() => { setShowFilters(false); setPage(1); }}
+                  className="flex-1 py-2 rounded-md text-sm font-medium text-white"
+                  style={{ background: "var(--color-glaze)" }}>
+                  Show {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="bg-white rounded-lg overflow-hidden grout-border overflow-x-auto">
           <table className="w-full text-sm">
             <thead style={{ background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
@@ -515,7 +734,20 @@ export default function ProductsPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-2.5">{p.brand}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-1.5">
+                      {(p as any).category && (p as any).category !== "tile" && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                          style={{
+                            background: (p as any).category === "material" ? "var(--color-ochre-tint)" : "var(--color-glaze-tint)",
+                            color: (p as any).category === "material" ? "var(--color-ochre)" : "var(--color-glaze-deep)",
+                          }}>
+                          {(p as any).category === "material" ? "Material" : "Sanitary"}
+                        </span>
+                      )}
+                      {p.brand}
+                    </div>
+                  </td>
                   <td className="px-4 py-2.5">{p.series_name}</td>
                   <td className="px-4 py-2.5">{p.size}</td>
                   <td className="px-4 py-2.5" style={{ color: "var(--color-ink-soft)" }}>{p.finish || "—"}</td>

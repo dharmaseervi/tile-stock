@@ -7,7 +7,6 @@ import Link from "next/link";
 import { api, isLoggedIn } from "@/lib/api";
 import Nav from "@/components/Nav";
 
-
 type StockRow = {
   product_id: string;
   brand: string;
@@ -58,12 +57,10 @@ export default function DashboardPage() {
   const [lowStock, setLowStock] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sizeFilter, setSizeFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.push("/login");
-      return;
-    }
+    if (!isLoggedIn()) { router.push("/login"); return; }
     Promise.all([api.currentStock(), api.lowStock()])
       .then(([current, low]) => {
         setStock(current ?? []);
@@ -78,6 +75,21 @@ export default function DashboardPage() {
     ? `₹${(totalValue / 100000).toFixed(2)}L`
     : `₹${totalValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
+  // Sizes — exclude empty (materials/sanitary have no size)
+  const sizes = Array.from(new Set(stock.map((p) => p.size).filter(Boolean))).sort();
+
+  // Only show category filter if dealer has non-tile products
+  const hasNonTile = stock.some((p) => (p as any).category && (p as any).category !== "tile");
+
+  const filtered = stock.filter((p) => {
+    const matchSize = !sizeFilter || p.size === sizeFilter;
+    const matchCat = !categoryFilter || (p as any).category === categoryFilter;
+    return matchSize && matchCat;
+  });
+
+  const filteredBoxes = filtered.reduce((s, p) => s + p.boxes_in_stock, 0);
+  const filteredValue = filtered.reduce((s, p) => s + (p.stock_value || 0), 0);
+
   return (
     <div className="min-h-screen" style={{ background: "var(--color-kiln)" }}>
       <Nav />
@@ -87,11 +99,9 @@ export default function DashboardPage() {
             Dashboard
           </h1>
           {!loading && stock.length > 0 && (
-            <button
-              onClick={() => api.downloadStockPDF()}
+            <button onClick={() => api.downloadStockPDF()}
               className="text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-md grout-border"
-              style={{ color: "var(--color-glaze-deep)" }}
-            >
+              style={{ color: "var(--color-glaze-deep)" }}>
               <Download size={14} /> Stock Report
             </button>
           )}
@@ -112,25 +122,27 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Low stock — clickable */}
         {!loading && lowStock.length > 0 && (
-          <div
-            className="rounded-lg p-4 border"
-            style={{ background: "var(--color-ochre-tint)", borderColor: "var(--color-ochre)" }}
-          >
+          <div className="rounded-lg p-4 border" style={{ background: "var(--color-ochre-tint)", borderColor: "var(--color-ochre)" }}>
             <h2 className="font-medium mb-2 text-sm flex items-center gap-1.5" style={{ color: "var(--color-ochre)" }}>
               <AlertTriangle size={15} />
               Low stock — {lowStock.length} product{lowStock.length > 1 ? "s" : ""} at or below reorder level
             </h2>
-            <ul className="text-sm space-y-1" style={{ color: "var(--color-ink)" }}>
+            <ul className="text-sm space-y-1.5">
               {lowStock.map((p) => (
-                <li key={p.product_id} className="flex items-baseline justify-between">
-                  <span>
-                    {p.brand} — {p.series_name} ({p.size}
-                    {p.finish ? `, ${p.finish}` : ""})
-                  </span>
-                  <span className="font-[family-name:var(--font-mono)] text-xs">
-                    {p.boxes_in_stock} / {p.reorder_level} boxes
-                  </span>
+                <li key={p.product_id}>
+                  <Link href={`/products/${p.product_id}`}
+                    className="flex items-baseline justify-between hover:opacity-70 transition-opacity"
+                    style={{ color: "var(--color-ink)" }}>
+                    <span className="underline underline-offset-2 decoration-dotted">
+                      {p.brand} — {p.series_name}
+                      {p.size ? ` (${p.size}${p.finish ? `, ${p.finish}` : ""})` : ""}
+                    </span>
+                    <span className="font-[family-name:var(--font-mono)] text-xs shrink-0 ml-3">
+                      {p.boxes_in_stock} / {p.reorder_level}
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -138,39 +150,53 @@ export default function DashboardPage() {
         )}
 
         <div>
-          <h2 className="text-sm font-medium mb-3" style={{ color: "var(--color-ink-soft)" }}>
-            Current Stock
-          </h2>
+          <h2 className="text-sm font-medium mb-3" style={{ color: "var(--color-ink-soft)" }}>Current Stock</h2>
 
-          {/* Size filter pills */}
-          {stock.length > 0 && (() => {
-            const sizes = Array.from(new Set(stock.map((p) => p.size))).sort();
-            return sizes.length > 1 ? (
-              <div className="flex flex-wrap gap-2 mb-3">
-                <button
-                  onClick={() => setSizeFilter(null)}
+          {/* Filters */}
+          {stock.length > 0 && (sizes.length > 1 || hasNonTile) && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {hasNonTile && [
+                { key: null, label: "All" },
+                { key: "tile", label: "Tiles" },
+                { key: "material", label: "Materials" },
+                { key: "sanitary", label: "Sanitary" },
+              ].map(({ key, label }) => (
+                <button key={String(key)}
+                  onClick={() => { setCategoryFilter(key); setSizeFilter(null); }}
                   className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
-                  style={sizeFilter === null
-                    ? { background: "var(--color-glaze)", color: "white" }
-                    : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
-                >
-                  All sizes
+                  style={categoryFilter === key
+                    ? { background: "var(--color-ink)", color: "white" }
+                    : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                  {label}
                 </button>
-                {sizes.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setSizeFilter(sizeFilter === s ? null : s)}
-                    className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors font-[family-name:var(--font-mono)]"
-                    style={sizeFilter === s
+              ))}
+
+              {hasNonTile && sizes.length > 1 && (
+                <div className="w-px self-stretch mx-1" style={{ background: "var(--color-grout)" }} />
+              )}
+
+              {sizes.length > 1 && (
+                <>
+                  <button onClick={() => setSizeFilter(null)}
+                    className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
+                    style={sizeFilter === null
                       ? { background: "var(--color-glaze)", color: "white" }
-                      : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}
-                  >
-                    {s}
+                      : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                    All sizes
                   </button>
-                ))}
-              </div>
-            ) : null;
-          })()}
+                  {sizes.map((s) => (
+                    <button key={s} onClick={() => setSizeFilter(sizeFilter === s ? null : s)}
+                      className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors font-[family-name:var(--font-mono)]"
+                      style={sizeFilter === s
+                        ? { background: "var(--color-glaze)", color: "white" }
+                        : { background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                      {s}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
 
           {loading ? (
             <TableSkeleton />
@@ -185,13 +211,10 @@ export default function DashboardPage() {
                   Add your first tile design to start tracking stock.
                 </p>
               </div>
-              <Link
-                href="/products"
+              <Link href="/products"
                 className="inline-flex items-center gap-1.5 text-sm text-white px-4 py-2 rounded-md font-medium mt-1"
-                style={{ background: "var(--color-glaze)" }}
-              >
-                <Plus size={15} />
-                Add Product
+                style={{ background: "var(--color-glaze)" }}>
+                <Plus size={15} /> Add Product
               </Link>
             </div>
           ) : (
@@ -203,19 +226,18 @@ export default function DashboardPage() {
                     <th className="px-4 py-2.5 font-medium">Series</th>
                     <th className="px-4 py-2.5 font-medium">Size</th>
                     <th className="px-4 py-2.5 font-medium">Finish</th>
-                    <th className="px-4 py-2.5 font-medium text-right">Boxes in stock</th>
+                    <th className="px-4 py-2.5 font-medium text-right">In stock</th>
                     <th className="px-4 py-2.5 font-medium text-right">Value</th>
                   </tr>
                 </thead>
                 <tbody className="grout-divide">
                   {(() => {
                     const groups: Record<string, StockRow[]> = {};
-                    stock
-                      .filter((p) => !sizeFilter || p.size === sizeFilter)
-                      .forEach((p) => {
-                        if (!groups[p.size]) groups[p.size] = [];
-                        groups[p.size].push(p);
-                      });
+                    filtered.forEach((p) => {
+                      const key = p.size || "Other";
+                      if (!groups[key]) groups[key] = [];
+                      groups[key].push(p);
+                    });
 
                     return Object.entries(groups).map(([size, rows]) => {
                       const groupBoxes = rows.reduce((s, p) => s + p.boxes_in_stock, 0);
@@ -225,18 +247,16 @@ export default function DashboardPage() {
                           {rows.map((p) => {
                             const low = p.boxes_in_stock <= p.reorder_level;
                             return (
-                              <tr key={p.product_id} className="hover:bg-[var(--color-kiln-dim)] transition-colors">
+                              <tr key={p.product_id}
+                                className="hover:bg-[var(--color-kiln-dim)] transition-colors cursor-pointer"
+                                onClick={() => router.push(`/products/${p.product_id}`)}>
                                 <td className="px-4 py-2.5">{p.brand}</td>
                                 <td className="px-4 py-2.5">{p.series_name}</td>
-                                <td className="px-4 py-2.5">{p.size}</td>
-                                <td className="px-4 py-2.5" style={{ color: "var(--color-ink-soft)" }}>
-                                  {p.finish || "—"}
-                                </td>
-                                <td
-                                  className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)]"
-                                  style={{ color: low ? "var(--color-ochre)" : "var(--color-ink)", fontWeight: low ? 600 : 400 }}
-                                >
-                                  {p.boxes_in_stock}
+                                <td className="px-4 py-2.5 font-[family-name:var(--font-mono)] text-xs">{p.size || "—"}</td>
+                                <td className="px-4 py-2.5" style={{ color: "var(--color-ink-soft)" }}>{p.finish || "—"}</td>
+                                <td className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)]"
+                                  style={{ color: low ? "var(--color-ochre)" : "var(--color-ink)", fontWeight: low ? 600 : 400 }}>
+                                  {p.boxes_in_stock}{low && " ⚠"}
                                 </td>
                                 <td className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)]" style={{ color: "var(--color-ink-soft)" }}>
                                   {p.stock_value > 0 ? `₹${p.stock_value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "—"}
@@ -244,14 +264,17 @@ export default function DashboardPage() {
                               </tr>
                             );
                           })}
-                          <tr key={`subtotal-${size}`}>
-                            <td colSpan={4} className="px-4 py-2 text-xs font-medium text-right" style={{ background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
+                          <tr>
+                            <td colSpan={4} className="px-4 py-2 text-xs font-medium text-right"
+                              style={{ background: "var(--color-kiln-dim)", color: "var(--color-ink-soft)" }}>
                               {size} total
                             </td>
-                            <td className="px-4 py-2 text-right font-[family-name:var(--font-mono)] text-xs font-semibold" style={{ background: "var(--color-kiln-dim)", color: "var(--color-glaze-deep)" }}>
+                            <td className="px-4 py-2 text-right font-[family-name:var(--font-mono)] text-xs font-semibold"
+                              style={{ background: "var(--color-kiln-dim)", color: "var(--color-glaze-deep)" }}>
                               {groupBoxes}
                             </td>
-                            <td className="px-4 py-2 text-right font-[family-name:var(--font-mono)] text-xs font-semibold" style={{ background: "var(--color-kiln-dim)", color: "var(--color-glaze-deep)" }}>
+                            <td className="px-4 py-2 text-right font-[family-name:var(--font-mono)] text-xs font-semibold"
+                              style={{ background: "var(--color-kiln-dim)", color: "var(--color-glaze-deep)" }}>
                               {groupValue > 0 ? `₹${groupValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "—"}
                             </td>
                           </tr>
@@ -260,6 +283,18 @@ export default function DashboardPage() {
                     });
                   })()}
                 </tbody>
+                {/* Grand total */}
+                <tfoot>
+                  <tr style={{ background: "var(--color-glaze)", color: "white" }}>
+                    <td colSpan={4} className="px-4 py-2.5 text-xs font-semibold text-right">Grand total</td>
+                    <td className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)] font-semibold">
+                      {filteredBoxes}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)] font-semibold">
+                      {filteredValue > 0 ? `₹${filteredValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "—"}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}

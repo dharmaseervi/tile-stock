@@ -9,8 +9,9 @@ import {
 import { api, isLoggedIn } from "@/lib/api";
 import { shadeColor } from "@/lib/shade";
 import Nav from "@/components/Nav";
+import ProductPicker from "@/components/ProductPicker";
 
-type Product = { id: string; brand: string; series_name: string; size: string };
+type Product = { id: string; brand: string; series_name: string; size: string; finish: string | null; price_per_box?: number };
 type Batch = { id: string; lot_number: string };
 
 type MoveType = "in" | "out" | "adjustment" | "damage";
@@ -65,6 +66,7 @@ export default function StockMovePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(""); setMessage("");
+    if (!productId) { setError("Select a tile first."); return; }
     try {
       let finalBatchId = batchId;
       if (movementType === "in" && newLot.trim()) {
@@ -186,19 +188,12 @@ export default function StockMovePage() {
             </p>
           )}
 
-          <select
-            required value={productId}
-            onChange={(e) => setProductId(e.target.value)}
-            className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:ring-2"
-            style={inputStyle}
-          >
-            <option value="">Select product</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.brand} — {p.series_name} ({p.size})
-              </option>
-            ))}
-          </select>
+          <ProductPicker
+            products={products}
+            value={productId}
+            onChange={setProductId}
+            placeholder="Search brand, series, or size…"
+          />
 
           {movementType !== "in" && batches.length > 0 && (
             <select
