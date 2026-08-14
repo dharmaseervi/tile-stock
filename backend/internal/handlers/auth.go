@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +16,22 @@ import (
 )
 
 type AuthHandler struct{ DB *sqlx.DB }
+
+// sessionExpiry must match issueToken's exp duration so both stay in sync.
+const sessionExpiry = 30 * 24 * time.Hour
+
+func hashToken(token string) string {
+	h := sha256.Sum256([]byte(token))
+	return fmt.Sprintf("%x", h)
+}
+
+func (h *AuthHandler) createSession(userID, orgID, token string) error {
+	_, err := h.DB.Exec(`
+		INSERT INTO sessions (user_id, org_id, token_hash, expires_at)
+		VALUES ($1, $2, $3, $4)
+	`, userID, orgID, hashToken(token), time.Now().Add(sessionExpiry))
+	return err
+}
 
 type signupReq struct {
 	OrgName  string `json:"org_name" binding:"required"`
@@ -26,6 +45,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -57,6 +77,11 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token issue failed"})
 		return
 	}
+
+	if err := h.createSession(userID, orgID, token); err != nil {
+		fmt.Println("session insert error:", err)
+	}
+
 	c.JSON(http.StatusCreated, gin.H{"token": token})
 }
 
@@ -71,6 +96,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
 	var user struct {
 		ID           string `db:"id"`
@@ -94,7 +120,29 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token issue failed"})
 		return
 	}
+
+	if err := h.createSession(user.ID, user.OrgID, token); err != nil {
+		fmt.Println("session insert error:", err)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	raw := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+	if raw == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no token"})
+		return
+	}
+	_, err := h.DB.Exec(`
+		UPDATE sessions SET revoked_at = NOW()
+		WHERE token_hash = $1
+	`, hashToken(raw))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "logout failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
 func issueToken(userID, orgID, role string) (string, error) {
@@ -102,7 +150,7 @@ func issueToken(userID, orgID, role string) (string, error) {
 		"user_id": userID,
 		"org_id":  orgID,
 		"role":    role,
-		"exp":     time.Now().Add(7 * 24 * time.Hour).Unix(),
+		"exp":     time.Now().Add(sessionExpiry).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(os.Getenv("JWT_SECRET")))

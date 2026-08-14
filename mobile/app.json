@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "Tiles Stock",
+    "slug": "tiles-stock",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "tilesstock",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tilesstock.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to scan QR codes on tile labels",
+        "NSPhotoLibraryUsageDescription": "Used to upload tile photos"
+      }
+    },
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#191713"
+    },
+    "android": {
+      "package": "com.tilesstock.app",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Used to scan QR codes on tile labels"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Used to upload tile photos"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

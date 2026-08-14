@@ -110,6 +110,7 @@ func (h *ProductHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	_, err := h.DB.Exec(`DELETE FROM products WHERE id=$1 AND org_id=$2`, id, orgID)
 	if err != nil {
+		log.Printf("DELETE error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
 		return
 	}

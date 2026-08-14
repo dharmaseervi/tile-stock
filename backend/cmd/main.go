@@ -35,7 +35,14 @@ func main() {
 		AllowHeaders:     []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
 	}))
-
+	_, err := dbx.Exec(`
+    DELETE FROM sessions 
+    WHERE expires_at < NOW()
+    OR revoked_at < NOW() - INTERVAL '7 days'
+`)
+	if err != nil {
+		log.Println("session cleanup error:", err)
+	}
 	// Rate limiters
 	authLimiter := middleware.NewRateLimiter(10, time.Minute) // 10 auth attempts/min
 	apiLimiter := middleware.NewRateLimiter(300, time.Minute) // 300 API calls/min
@@ -65,11 +72,12 @@ func main() {
 		// Public — rate limited
 		api.POST("/auth/signup", authLimiter.Middleware(), h.auth.Signup)
 		api.POST("/auth/login", authLimiter.Middleware(), h.auth.Login)
+		api.POST("/auth/logout", authLimiter.Middleware(), h.auth.Logout) // ← add this
 		api.POST("/invites/accept", authLimiter.Middleware(), h.invites.Accept)
 		api.GET("/public/:org_id/products", h.public.GetPriceList)
 
 		authed := api.Group("/")
-		authed.Use(middleware.AuthRequired(), apiLimiter.Middleware())
+		authed.Use(middleware.AuthRequired(dbx), apiLimiter.Middleware())
 		{
 			// Products
 			authed.GET("/products", h.products.List)
