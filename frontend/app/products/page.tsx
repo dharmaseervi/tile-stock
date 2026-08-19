@@ -153,8 +153,8 @@ export default function ProductsPage() {
     const matchesMaxPrice = !maxPrice || p.price_per_box <= parseFloat(maxPrice);
     const matchesStock = stockStatus === "all" ? true :
       stockStatus === "instock" ? p.boxes_in_stock > p.reorder_level :
-      stockStatus === "low" ? (p.boxes_in_stock > 0 && p.boxes_in_stock <= p.reorder_level) :
-      p.boxes_in_stock === 0;
+        stockStatus === "low" ? (p.boxes_in_stock > 0 && p.boxes_in_stock <= p.reorder_level) :
+          p.boxes_in_stock === 0;
     return matchesSearch && matchesFinish && matchesBrand && matchesSize &&
       matchesCategory && matchesMinPrice && matchesMaxPrice && matchesStock;
   });
@@ -251,9 +251,9 @@ export default function ProductsPage() {
             {/* Category switcher */}
             <div className="flex border-b" style={{ borderColor: "var(--color-grout)" }}>
               {([
-                { key: "tile",      label: "🪟 Tile",     desc: "Glazed / ceramic / porcelain" },
-                { key: "material",  label: "🧪 Material",  desc: "Adhesive, grout, epoxy, wash" },
-                { key: "sanitary",  label: "🚿 Sanitary",  desc: "Commode, faucet, basin" },
+                { key: "tile", label: "🪟 Tile", desc: "Glazed / ceramic / porcelain" },
+                { key: "material", label: "🧪 Material", desc: "Adhesive, grout, epoxy, wash" },
+                { key: "sanitary", label: "🚿 Sanitary", desc: "Commode, faucet, basin" },
               ] as const).map((c) => (
                 <button
                   key={c.key}
@@ -340,85 +340,85 @@ export default function ProductsPage() {
 
               {/* Dimensions — tile only */}
               {formCategory === "tile" && (
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-ink-soft)" }}>Dimensions</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Size</label>
-                    {isCustomSize ? (
-                      <input placeholder="e.g. 600x600" required value={form.size}
-                        onChange={(e) => setForm({ ...form, size: e.target.value })}
-                        className={`${inputClass} w-full`} style={inputStyle} />
-                    ) : (
-                      <select required
-                        value={TILE_SIZES.find((s) => s.label === `${form.size.replace("x", " x ")} mm`)?.label || ""}
-                        onChange={handleSizeSelect}
-                        className={`${inputClass} w-full`} style={inputStyle}>
-                        <option value="" disabled>Select size</option>
-                        {TILE_SIZES.map((s) => <option key={s.label} value={s.label}>{s.label}</option>)}
-                      </select>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Finish</label>
-                    <input placeholder="Glossy, Matte, Carving…" value={form.finish} list="finish-suggestions"
-                      onChange={(e) => setForm({ ...form, finish: e.target.value })}
-                      className={`${inputClass} w-full`} style={inputStyle} />
-                    <datalist id="finish-suggestions">
-                      {COMMON_FINISHES.map((f) => <option key={f} value={f} />)}
-                    </datalist>
-                  </div>
-                  <div>
-                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Pieces per box</label>
-                    <input type="number" min={1} placeholder="2" required value={form.pieces_per_box}
-                      onChange={(e) => handlePiecesPerBoxChange(e.target.value === "" ? 0 : parseInt(e.target.value) || 0)}
-                      className={`${inputClass} w-full`} style={inputStyle} />
-                  </div>
-                  <div>
-                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>
-                      Sq.ft per box
-                      {!isCustomSize && form.size && (
-                        <span className="ml-1.5 font-normal" style={{ color: "var(--color-glaze)" }}>Auto-calculated</span>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-ink-soft)" }}>Dimensions</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Size</label>
+                      {isCustomSize ? (
+                        <input placeholder="e.g. 600x600" required value={form.size}
+                          onChange={(e) => setForm({ ...form, size: e.target.value })}
+                          className={`${inputClass} w-full`} style={inputStyle} />
+                      ) : (
+                        <select required
+                          value={TILE_SIZES.find((s) => s.label === `${form.size.replace("x", " x ")} mm`)?.label || ""}
+                          onChange={handleSizeSelect}
+                          className={`${inputClass} w-full`} style={inputStyle}>
+                          <option value="" disabled>Select size</option>
+                          {TILE_SIZES.map((s) => <option key={s.label} value={s.label}>{s.label}</option>)}
+                        </select>
                       )}
-                    </label>
-                    <input type="number" step="0.01" placeholder="0.00" value={form.sqft_per_box}
-                      onChange={(e) => setForm({ ...form, sqft_per_box: e.target.value })}
-                      className={`${inputClass} w-full`} style={inputStyle} />
+                    </div>
+                    <div>
+                      <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Finish</label>
+                      <input placeholder="Glossy, Matte, Carving…" value={form.finish} list="finish-suggestions"
+                        onChange={(e) => setForm({ ...form, finish: e.target.value })}
+                        className={`${inputClass} w-full`} style={inputStyle} />
+                      <datalist id="finish-suggestions">
+                        {COMMON_FINISHES.map((f) => <option key={f} value={f} />)}
+                      </datalist>
+                    </div>
+                    <div>
+                      <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Pieces per box</label>
+                      <input type="number" min={1} placeholder="2" required value={form.pieces_per_box}
+                        onChange={(e) => handlePiecesPerBoxChange(e.target.value === "" ? 0 : parseInt(e.target.value) || 0)}
+                        className={`${inputClass} w-full`} style={inputStyle} />
+                    </div>
+                    <div>
+                      <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>
+                        Sq.ft per box
+                        {!isCustomSize && form.size && (
+                          <span className="ml-1.5 font-normal" style={{ color: "var(--color-glaze)" }}>Auto-calculated</span>
+                        )}
+                      </label>
+                      <input type="number" step="0.01" placeholder="0.00" value={form.sqft_per_box}
+                        onChange={(e) => setForm({ ...form, sqft_per_box: e.target.value })}
+                        className={`${inputClass} w-full`} style={inputStyle} />
+                    </div>
                   </div>
                 </div>
-              </div>
               )}
 
               {/* Unit — materials and sanitary */}
               {formCategory !== "tile" && (
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-ink-soft)" }}>
-                  {formCategory === "material" ? "Packaging" : "Specifications"}
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Unit</label>
-                    <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                      className={`${inputClass} w-full`} style={inputStyle}>
-                      {formCategory === "material"
-                        ? ["bag", "kg", "litre", "box", "piece", "set"].map((u) => <option key={u} value={u}>{u}</option>)
-                        : ["piece", "set", "pair"].map((u) => <option key={u} value={u}>{u}</option>)
-                      }
-                    </select>
-                    <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-soft)" }}>
-                      e.g. "25 bags of adhesive"
-                    </p>
-                  </div>
-                  {formCategory === "sanitary" && (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-ink-soft)" }}>
+                    {formCategory === "material" ? "Packaging" : "Specifications"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Model / Colour</label>
-                      <input placeholder="e.g. White, Chrome, EWC 001" value={form.finish}
-                        onChange={(e) => setForm({ ...form, finish: e.target.value })}
-                        className={`${inputClass} w-full`} style={inputStyle} />
+                      <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Unit</label>
+                      <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                        className={`${inputClass} w-full`} style={inputStyle}>
+                        {formCategory === "material"
+                          ? ["bag", "kg", "litre", "box", "piece", "set"].map((u) => <option key={u} value={u}>{u}</option>)
+                          : ["piece", "set", "pair"].map((u) => <option key={u} value={u}>{u}</option>)
+                        }
+                      </select>
+                      <p className="text-[11px] mt-1" style={{ color: "var(--color-ink-soft)" }}>
+                        e.g. "25 bags of adhesive"
+                      </p>
                     </div>
-                  )}
+                    {formCategory === "sanitary" && (
+                      <div>
+                        <label className="block text-xs mb-1.5 font-medium" style={{ color: "var(--color-ink-soft)" }}>Model / Colour</label>
+                        <input placeholder="e.g. White, Chrome, EWC 001" value={form.finish}
+                          onChange={(e) => setForm({ ...form, finish: e.target.value })}
+                          className={`${inputClass} w-full`} style={inputStyle} />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
               )}
 
               {/* Stock & pricing */}
@@ -652,10 +652,10 @@ export default function ProductsPage() {
                   <p className="text-xs font-medium mb-2" style={{ color: "var(--color-ink-soft)" }}>Stock status</p>
                   <div className="flex flex-wrap gap-2">
                     {([
-                      { key: "all",     label: "All" },
+                      { key: "all", label: "All" },
                       { key: "instock", label: "✓ In stock" },
-                      { key: "low",     label: "⚠ Low stock" },
-                      { key: "out",     label: "✕ Out of stock" },
+                      { key: "low", label: "⚠ Low stock" },
+                      { key: "out", label: "✕ Out of stock" },
                     ] as const).map(({ key, label }) => (
                       <button key={key} onClick={() => setStockStatus(key)}
                         className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors"
@@ -767,11 +767,10 @@ export default function ProductsPage() {
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(p.id);
-                      }}
-                      className="p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--color-oxide-tint)]"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                      className="p-1.5 rounded transition-opacity hover:bg-[var(--color-oxide-tint)]
+             opacity-0 group-hover:opacity-100 
+             [@media(hover:none)]:opacity-100"
                       style={{ color: "var(--color-oxide)" }}
                       aria-label="Delete product"
                     >
