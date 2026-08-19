@@ -13,6 +13,7 @@ import Nav from "@/components/Nav";
 
 type Product = {
   id: string;
+  category: string;        // ← add
   brand: string;
   series_name: string;
   size: string;
@@ -23,6 +24,7 @@ type Product = {
   sqft_per_box: number | null;
   reorder_level: number;
   price_per_box: number;
+  cost_price: number | null;  // ← add
   image_url: string | null;
 };
 
@@ -68,6 +70,7 @@ export default function ProductDetailPage() {
         setBatches(b ?? []);
         setMovements(h ?? []);
         setForm({
+          category: detail.product.category,  // ← add this
           brand: detail.product.brand,
           series_name: detail.product.series_name,
           size: detail.product.size,
@@ -78,6 +81,7 @@ export default function ProductDetailPage() {
           sqft_per_box: detail.product.sqft_per_box ?? "",
           reorder_level: detail.product.reorder_level,
           price_per_box: detail.product.price_per_box || "",
+          cost_price: detail.product.cost_price || "",  // ← add this too
         });
       })
       .finally(() => setLoading(false));
@@ -130,8 +134,10 @@ export default function ProductDetailPage() {
       }
       await api.updateProduct(id, {
         ...form,
+        category: form.category || product?.category || "tile",
         sqft_per_box: form.sqft_per_box ? parseFloat(form.sqft_per_box) : 0,
         price_per_box: form.price_per_box ? parseFloat(form.price_per_box) : 0,
+        cost_price: form.cost_price ? parseFloat(form.cost_price) : 0,
         image_url,
       });
       setEditing(false);
