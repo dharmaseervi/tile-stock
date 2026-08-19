@@ -3,7 +3,7 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 
 // Flip to false to hit the deployed Render backend.
-const USE_LOCAL = true;
+const USE_LOCAL = false;
 let _onUnauthorized: (() => void) | null = null;
 
 export function setUnauthorizedHandler(fn: () => void) {
@@ -66,11 +66,14 @@ async function request(path: string, options?: RequestInit) {
 
 export const api = {
   // Auth
-  login: (email: string, password: string) =>
-    request("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    }),
+login: (email: string, password: string) =>
+  request("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  }).then((data) => {
+    console.log("TOKEN:", data?.token);
+    return data;
+  }),
   signup: (orgName: string, email: string, password: string) =>
     request("/auth/signup", {
       method: "POST",

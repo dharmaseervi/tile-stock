@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -28,6 +29,15 @@ func main() {
 	}
 
 	r := gin.Default()
+	r.Use(func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20)
+		c.Next()
+	})
+
+	r.GET("/api/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
 	r.Use(middleware.SecurityHeaders())
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{frontendURL},

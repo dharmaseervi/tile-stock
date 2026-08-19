@@ -6,7 +6,7 @@ import { useAuth } from "@/store/auth";
 import { C, TNUM } from "@/lib/theme";
 import { GroupBand, Loading } from "@/components/ui";
 
-const WEB_URL = "https://tile-stock-orcin.vercel.app";
+const WEB_URL = "https://poorvatile.com";
 
 export default function SettingsScreen() {
   const { logout } = useAuth();

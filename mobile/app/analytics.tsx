@@ -56,11 +56,12 @@ export default function AnalyticsScreen() {
   const boxesOut = products.reduce((a: number, p: any) => a + p.total_out, 0);
 
   return (
-    <View className="flex-1 bg-bg">
+    <View className="flex-1   bg-bg">
       {/* Period as a mono strip — reads as a report header, not a toolbar */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0, maxHeight: 44 }}
         contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 20, paddingBottom: 4 }}
       >
         {PERIODS.map((p) => {
