@@ -142,10 +142,31 @@ func (h *ProductHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// Check for a duplicate in another row before attempting the update.
+	// Without this, Postgres rejects the update even when the "duplicate"
+	// is the row itself.
+	var conflict string
+	err := h.DB.Get(&conflict, `
+		SELECT id FROM products
+		WHERE org_id = $1
+		  AND LOWER(brand)       = LOWER($2)
+		  AND LOWER(series_name) = LOWER($3)
+		  AND LOWER(COALESCE(size,''))   = LOWER(COALESCE($4,''))
+		  AND LOWER(COALESCE(finish,'')) = LOWER(COALESCE($5,''))
+		  AND id != $6
+	`, orgID, req.Brand, req.SeriesName, req.Size, req.Finish, id)
+
+	if err == nil {
+		// Found a different product with the same fields
+		c.JSON(http.StatusConflict, gin.H{"error": "another product with this brand, design, size and finish already exists"})
+		return
+	}
+
 	res, err := h.DB.Exec(
 		`UPDATE products SET category=$1, brand=$2, series_name=$3, size=$4, finish=$5, hsn_code=$6,
 		 unit=$7, pieces_per_box=$8, sqft_per_box=$9, reorder_level=$10, price_per_box=$11, cost_price=$12,
-		 image_url=COALESCE(NULLIF($13,''), image_url), location=$14
+		 image_url=CASE WHEN $13='__CLEAR__' THEN NULL WHEN $13='' THEN image_url ELSE $13 END,
+		 location=$14
 		 WHERE id=$15 AND org_id=$16`,
 		req.Category, req.Brand, req.SeriesName, req.Size, req.Finish, req.HSNCode,
 		req.Unit, req.PiecesPerBox, toFloat(req.SqftPerBox), toInt(req.ReorderLevel),
@@ -153,7 +174,7 @@ func (h *ProductHandler) Update(c *gin.Context) {
 		req.ImageURL, req.Location, id, orgID,
 	)
 	if err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "update failed — duplicate brand/series/size/finish?"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	rows, _ := res.RowsAffected()
