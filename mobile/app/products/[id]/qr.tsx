@@ -11,8 +11,7 @@ import { api } from "@/lib/api";
 import { C, TNUM } from "@/lib/theme";
 import { Eyebrow, Loading } from "@/components/ui";
 import { printLabel, type LabelConfig, type Template } from "@/lib/brotherPrint";
-
-const WEB_URL = "https://www.poorvatiles.com";
+import { WEB_URL } from "@/lib/web";
 
 /* Print is 732 dots wide (62mm @ 300dpi). Preview draws at 1/2.6 so
    every dot value here maps predictably onto the paper. */

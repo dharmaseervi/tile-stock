@@ -4,8 +4,7 @@ import Svg, { Path } from "react-native-svg";
 import { useAuth } from "@/store/auth";
 import { C } from "@/lib/theme";
 import { Screen, Masthead, GroupBand } from "@/components/ui";
-
-const WEB_URL = "https://www.poorvatiles.com";
+import { priceListUrl } from "@/lib/web";
 
 type Item = {
   label: string;
@@ -50,7 +49,9 @@ export default function MoreScreen() {
           sub: "Send your catalogue to a customer",
           onPress: async () => {
             try {
-              await Share.share({ message: `${WEB_URL}/price-list` });
+              const url = priceListUrl(useAuth.getState().token);
+              if (!url) return Alert.alert("Sign in again", "Couldn't find your shop. Log out and back in, then try again.");
+              await Share.share({ message: url });
             } catch {
               /* user dismissed the sheet */
             }

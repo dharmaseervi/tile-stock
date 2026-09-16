@@ -5,8 +5,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/store/auth";
 import { C, TNUM } from "@/lib/theme";
 import { GroupBand, Loading } from "@/components/ui";
-
-const WEB_URL = "https://www.poorvatiles.com";
+import { WEB_URL, priceListUrl } from "@/lib/web";
 
 export default function SettingsScreen() {
   const { logout } = useAuth();
@@ -98,7 +97,9 @@ export default function SettingsScreen() {
           activeOpacity={0.85}
           onPress={async () => {
             try {
-              await Share.share({ message: `${WEB_URL}/price-list` });
+              const url = priceListUrl(useAuth.getState().token);
+              if (!url) return Alert.alert("Sign in again", "Couldn't find your shop. Log out and back in, then try again.");
+              await Share.share({ message: url });
             } catch {
               /* dismissed */
             }
