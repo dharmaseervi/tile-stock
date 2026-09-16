@@ -1,0 +1,20 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.tilesstock'
+version = '1.0.0'
+
+android {
+  namespace "com.tilesstock.brotherprint"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
+
+dependencies {
+  // Brother Print SDK (QL-820NWB). Ships arm/x86 libcreatedata.so, 16 KB page aligned.
+  implementation files('libs/BrotherPrintLibrary.aar')
+}

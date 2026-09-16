@@ -1,6 +1,9 @@
-import { NativeModules } from "react-native";
+import { requireOptionalNativeModule } from "expo";
 
-const { BrotherPrint } = NativeModules;
+// Local Expo module in modules/brother-print (Android only).
+const BrotherPrint = requireOptionalNativeModule<{
+  printLabel(ip: string, qrBase64: string, copies: number, config: LabelConfig): Promise<string>;
+}>("BrotherPrint");
 
 export type Template = "rack" | "tower" | "strip" | "boxed" | "custom";
 
@@ -37,13 +40,4 @@ export async function printLabel(
     throw new Error("BrotherPrint native module not found — rebuild the app.");
   }
   await BrotherPrint.printLabel(ip, qrBase64, copies, config);
-}
-
-export async function searchPrinters(): Promise<string[]> {
-  if (!BrotherPrint) throw new Error("BrotherPrint native module not found.");
-  try {
-    return await BrotherPrint.searchPrinters();
-  } catch (err: any) {
-    throw new Error(err?.message ?? String(err));
-  }
 }

@@ -40,7 +40,7 @@ export function PhotoField({ uri, existing, onPick, onClear }: {
       }
 
       const opts: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
         // Tile photos are reference shots, not print artwork — 0.6 keeps

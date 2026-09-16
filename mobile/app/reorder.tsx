@@ -366,7 +366,9 @@ export default function ReorderScreen() {
             facing="back"
             onBarcodeScanned={onBarcode}
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-          >
+          />
+          {/* CameraView takes no children, so the overlay sits on top of it. */}
+          <View className="absolute inset-0" pointerEvents="box-none">
             <View className="flex-1 justify-between px-[22px] pb-10 pt-16">
               <View>
                 <Text className="font-mono text-[10px] tracking-[1.4px] text-white/60">
@@ -386,7 +388,7 @@ export default function ReorderScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </CameraView>
+          </View>
         </View>
       </Modal>
 

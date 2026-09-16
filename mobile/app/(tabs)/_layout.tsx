@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import { View, Text, Platform } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const ACCENT = "#2FB8AE";
 const IDLE = "#8F877A";
@@ -56,6 +57,8 @@ function ScanItem() {
 }
 
 export default function TabLayout() {
+  // Android draws edge-to-edge, so the bar has to grow past the system nav bar.
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -68,7 +71,7 @@ export default function TabLayout() {
           backgroundColor: "#141210",
           borderTopWidth: 1,
           borderTopColor: "rgba(255,255,255,0.09)",
-          height: Platform.OS === "ios" ? 84 : 68,
+          height: Platform.OS === "ios" ? 84 : 68 + insets.bottom,
           paddingTop: 10,
           paddingHorizontal: 6,
         },

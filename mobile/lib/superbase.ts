@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 
 /* Same bucket and publishable key the web app uses. The anon key is safe
    to ship — it only grants what the bucket's policies allow. */

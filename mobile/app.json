@@ -15,11 +15,6 @@
       }
     },
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#191713"
-    },
     "android": {
       "package": "com.tilesstock.app",
       "versionCode": 1,
@@ -30,7 +25,13 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -38,13 +39,24 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Used to scan QR codes on tile labels"
+          "cameraPermission": "Used to scan QR codes on tile labels",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
           "photosPermission": "Used to upload tile photos"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#191713",
+          "imageWidth": 200
         }
       ]
     ],

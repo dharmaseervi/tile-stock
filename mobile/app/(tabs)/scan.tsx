@@ -141,7 +141,9 @@ export default function ScanScreen() {
         facing="back"
         onBarcodeScanned={scanned ? undefined : onBarcode}
         barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-      >
+      />
+      {/* CameraView takes no children, so the overlay sits on top of it. */}
+      <View className="absolute inset-0" pointerEvents="box-none">
         <View className="flex-1" style={{ paddingTop: insets.top + 10 }}>
           <View className="px-[22px]">
             <Text className="font-mono text-[10px] tracking-[1.4px] text-white/60">
@@ -171,7 +173,7 @@ export default function ScanScreen() {
             <ActivityIndicator color={C.accent} size="large" />
           </View>
         )}
-      </CameraView>
+      </View>
 
       {/* ── Entry sheet ─────────────────────────────────── */}
       <Modal visible={!!product} animationType="slide" presentationStyle="pageSheet" onRequestClose={reset}>
