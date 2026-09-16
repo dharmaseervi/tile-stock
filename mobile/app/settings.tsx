@@ -6,7 +6,7 @@ import { useAuth } from "@/store/auth";
 import { C, TNUM } from "@/lib/theme";
 import { GroupBand, Loading } from "@/components/ui";
 
-const WEB_URL = "https://poorvatile.com";
+const WEB_URL = "https://www.poorvatiles.com";
 
 export default function SettingsScreen() {
   const { logout } = useAuth();

@@ -5,7 +5,7 @@ import { useAuth } from "@/store/auth";
 import { C } from "@/lib/theme";
 import { Screen, Masthead, GroupBand } from "@/components/ui";
 
-const WEB_URL = "https://tile-stock-orcin.vercel.app";
+const WEB_URL = "https://www.poorvatiles.com";
 
 type Item = {
   label: string;
