@@ -541,6 +541,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-6 text-[13px]" style={{ color: "var(--color-ink-soft)" }}>
             <a href="#features" className="hover:text-[var(--color-ink)] transition-colors">Features</a>
             <a href="#pricing" className="hover:text-[var(--color-ink)] transition-colors">Pricing</a>
+            <Link href="/privacy" className="hover:text-[var(--color-ink)] transition-colors">Privacy</Link>
             <Link href="/login" className="hover:text-[var(--color-ink)] transition-colors">Log in</Link>
           </div>
           <p className="text-[12px]" style={{ color: "var(--color-ink-soft)" }}>Made for Indian tile dealers</p>

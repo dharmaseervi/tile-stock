@@ -3,6 +3,7 @@
 :root {
   /* Kiln white — cool porcelain background, not warm cream */
   --color-scheme: light;
+  --color-kiln: #f7f8f6;
   --color-kiln-dim: #eff1ec;
 
   /* Ink — grout-dark, not pure black */
