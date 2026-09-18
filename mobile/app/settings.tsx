@@ -22,12 +22,12 @@ export default function SettingsScreen() {
     ]);
   }
 
-  /* Staff, branches and billing are form-heavy and touched about once a
-     month — building them twice is poor value, so they hand off to web. */
+  /* Staff and branches are form-heavy and touched about once a month —
+     building them twice is poor value, so they hand off to web. Billing is
+     deliberately absent: Play forbids linking out to pay for the service. */
   const webItems = [
     { label: "Staff & invites", sub: "Add team members, set roles" },
     { label: "Branches", sub: "Godowns and showrooms" },
-    { label: "Subscription", sub: "Plan and billing" },
   ];
 
   return (
