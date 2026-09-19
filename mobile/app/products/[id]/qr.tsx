@@ -22,7 +22,7 @@ const PV_W = DOTS_W / S;
 const TEMPLATES: { key: Template; label: string; height: number; blurb: string }[] = [
   { key: "rack",  label: "RACK TAG", height: 560,
     blurb: "Brand band, big design name, size and finish side by side. Reads down a rack at arm's length." },
-  { key: "tower", label: "TOWER", height: 720,
+  { key: "tower", label: "TOWER", height: 800,
     blurb: "Large centred QR with everything stacked below. Best when the label gets scanned more than read." },
   { key: "strip", label: "STRIP", height: 280,
     blurb: "Short and wide. Uses the least roll per label — good for high-volume runs." },
@@ -183,16 +183,21 @@ export default function ProductQRScreen() {
     const pad = 26 / S;
 
     if (cfg.template === "rack") {
-      const qrPx = 180 / S;
+      // Same arithmetic as BrotherPrintModule.rackTag: the QR takes whatever
+      // height is left under the fields, clamped to 120–200 dots.
+      const lh = (sz: number) => sz * 1.17;
+      let y = 70 + 24 + lh(112) + 20;
+      if (size || finish) y += 18 + lh(24) + 6 + lh(40) + 20;
+      const qrPx = Math.min(200, Math.max(120, cfg.labelHeight - y - 26)) / S;
       return (
         <View style={{ width: PV_W, height: pvH, backgroundColor: "#fff" }}>
           <View style={{ height: 70 / S, backgroundColor: "#000", justifyContent: "center", paddingHorizontal: pad }}>
-            <Text numberOfLines={1} style={{ color: "#fff", fontSize: 38 / S, fontWeight: "700", letterSpacing: 1 }}>
+            <Text numberOfLines={1} style={{ includeFontPadding: false, color: "#fff", fontSize: 38 / S, fontWeight: "700", letterSpacing: 1 }}>
               {brand.toUpperCase()}
             </Text>
           </View>
           <View style={{ paddingHorizontal: pad, paddingTop: 24 / S }}>
-            <Text numberOfLines={1} style={{ fontSize: 112 / S, fontWeight: "700", color: "#000" }}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={52 / 112} style={{ includeFontPadding: false, fontSize: 112 / S, fontWeight: "700", color: "#000" }}>
               {name}
             </Text>
           </View>
@@ -202,14 +207,14 @@ export default function ProductQRScreen() {
               <View style={{ flexDirection: "row" }}>
                 {!!size && (
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 24 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>SIZE</Text>
-                    <Text style={{ fontSize: 40 / S, fontWeight: "700", color: "#000" }}>{size}</Text>
+                    <Text style={{ includeFontPadding: false, fontSize: 24 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>SIZE</Text>
+                    <Text style={{ includeFontPadding: false, fontSize: 40 / S, fontWeight: "700", color: "#000" }}>{size}</Text>
                   </View>
                 )}
                 {!!finish && (
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 24 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>FINISH</Text>
-                    <Text numberOfLines={1} style={{ fontSize: 40 / S, fontWeight: "700", color: "#000" }}>
+                    <Text style={{ includeFontPadding: false, fontSize: 24 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>FINISH</Text>
+                    <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: 40 / S, fontWeight: "700", color: "#000" }}>
                       {finish.toUpperCase()}
                     </Text>
                   </View>
@@ -220,7 +225,7 @@ export default function ProductQRScreen() {
           <View style={{ position: "absolute", left: pad, bottom: pad, flexDirection: "row", alignItems: "center", gap: 24 / S }}>
             <Qr px={qrPx} />
             {!!cfg.extra && (
-              <Text numberOfLines={1} style={{ fontSize: 28 / S, fontWeight: "700", color: "#000", letterSpacing: 1 }}>
+              <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: 28 / S, fontWeight: "700", color: "#000", letterSpacing: 1 }}>
                 {cfg.extra.toUpperCase()}
               </Text>
             )}
@@ -235,12 +240,12 @@ export default function ProductQRScreen() {
         <View style={{ width: PV_W, height: pvH, backgroundColor: "#fff", alignItems: "center", padding: pad }}>
           <Qr px={qrPx} />
           <View style={{ marginTop: 26 / S, alignItems: "center", width: "100%" }}>
-            {!!brand && <Text numberOfLines={1} style={{ fontSize: 30 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>{brand.toUpperCase()}</Text>}
-            {!!name && <Text numberOfLines={1} style={{ fontSize: 88 / S, fontWeight: "700", color: "#000", marginTop: 8 / S }}>{name}</Text>}
+            {!!brand && <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: 30 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>{brand.toUpperCase()}</Text>}
+            {!!name && <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={44 / 88} style={{ includeFontPadding: false, fontSize: 88 / S, fontWeight: "700", color: "#000", marginTop: 8 / S }}>{name}</Text>}
             {(!!size || !!finish) && <View style={{ height: 2 / S, backgroundColor: "#000", width: "100%", marginVertical: 14 / S }} />}
-            {!!size && <Text style={{ fontSize: 40 / S, fontWeight: "700", color: "#000" }}>{size}</Text>}
-            {!!finish && <Text numberOfLines={1} style={{ fontSize: 40 / S, fontWeight: "700", color: "#000", marginTop: 8 / S }}>{finish.toUpperCase()}</Text>}
-            {!!cfg.extra && <Text numberOfLines={1} style={{ fontSize: 30 / S, color: "#000", marginTop: 8 / S }}>{cfg.extra.toUpperCase()}</Text>}
+            {!!size && <Text style={{ includeFontPadding: false, fontSize: 40 / S, fontWeight: "700", color: "#000" }}>{size}</Text>}
+            {!!finish && <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: 40 / S, fontWeight: "700", color: "#000", marginTop: 8 / S }}>{finish.toUpperCase()}</Text>}
+            {!!cfg.extra && <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: 30 / S, color: "#000", marginTop: 8 / S }}>{cfg.extra.toUpperCase()}</Text>}
           </View>
         </View>
       );
@@ -253,9 +258,9 @@ export default function ProductQRScreen() {
         <View style={{ width: PV_W, height: pvH, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", padding: 22 / S, gap: 24 / S }}>
           <Qr px={qrPx} />
           <View style={{ flex: 1 }}>
-            {!!brand && <Text numberOfLines={1} style={{ fontSize: 26 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>{brand.toUpperCase()}</Text>}
-            {!!name && <Text numberOfLines={1} style={{ fontSize: 66 / S, fontWeight: "700", color: "#000", marginTop: 8 / S }}>{name}</Text>}
-            {!!meta && <Text numberOfLines={1} style={{ fontSize: 30 / S, color: "#000", marginTop: 8 / S }}>{meta}</Text>}
+            {!!brand && <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: 26 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>{brand.toUpperCase()}</Text>}
+            {!!name && <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: 66 / S, fontWeight: "700", color: "#000", marginTop: 8 / S }}>{name}</Text>}
+            {!!meta && <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: 30 / S, color: "#000", marginTop: 8 / S }}>{meta}</Text>}
           </View>
         </View>
       );
@@ -271,12 +276,12 @@ export default function ProductQRScreen() {
               <View style={{ flex: 1 }}>
                 {!!brand && (
                   <View style={{ borderWidth: 3 / S, borderColor: "#000", alignSelf: "flex-start", paddingHorizontal: 10 / S, paddingVertical: 5 / S }}>
-                    <Text numberOfLines={1} style={{ fontSize: 26 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>
+                    <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: 26 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>
                       {brand.toUpperCase()}
                     </Text>
                   </View>
                 )}
-                {!!name && <Text numberOfLines={2} style={{ fontSize: 76 / S, fontWeight: "700", color: "#000", marginTop: 16 / S }}>{name}</Text>}
+                {!!name && <Text numberOfLines={2} style={{ includeFontPadding: false, fontSize: 76 / S, fontWeight: "700", color: "#000", marginTop: 16 / S }}>{name}</Text>}
               </View>
               <Qr px={qrPx} />
             </View>
@@ -286,8 +291,8 @@ export default function ProductQRScreen() {
                 <View style={{ flexDirection: "row" }}>
                   {fields.map(([lab, val]) => (
                     <View key={lab} style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 22 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>{lab}</Text>
-                      <Text numberOfLines={1} style={{ fontSize: 36 / S, fontWeight: "700", color: "#000" }}>{val}</Text>
+                      <Text style={{ includeFontPadding: false, fontSize: 22 / S, fontWeight: "700", letterSpacing: 1, color: "#000" }}>{lab}</Text>
+                      <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: 36 / S, fontWeight: "700", color: "#000" }}>{val}</Text>
                     </View>
                   ))}
                 </View>
@@ -310,9 +315,9 @@ export default function ProductQRScreen() {
 
     const Block = () => (
       <View style={{ flex: cfg.layout === "horizontal" ? 1 : undefined, alignItems: ai, gap: 4 / S }}>
-        {!!brand && <Text numberOfLines={1} style={{ fontSize: cfg.brandSize / S, fontWeight: "700", color: "#000", textAlign: ta }}>{brand.toUpperCase()}</Text>}
-        {!!name && <Text numberOfLines={2} style={{ fontSize: cfg.nameSize / S, fontWeight: cfg.boldText ? "700" : "400", color: "#000", textAlign: ta }}>{name}</Text>}
-        {!!meta && <Text numberOfLines={1} style={{ fontSize: cfg.metaSize / S, color: "#000", textAlign: ta }}>{meta}</Text>}
+        {!!brand && <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: cfg.brandSize / S, fontWeight: "700", color: "#000", textAlign: ta }}>{brand.toUpperCase()}</Text>}
+        {!!name && <Text numberOfLines={2} style={{ includeFontPadding: false, fontSize: cfg.nameSize / S, fontWeight: cfg.boldText ? "700" : "400", color: "#000", textAlign: ta }}>{name}</Text>}
+        {!!meta && <Text numberOfLines={1} style={{ includeFontPadding: false, fontSize: cfg.metaSize / S, color: "#000", textAlign: ta }}>{meta}</Text>}
       </View>
     );
 
