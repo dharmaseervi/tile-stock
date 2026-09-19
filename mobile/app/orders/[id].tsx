@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { C, TNUM, money } from "@/lib/theme";
 import { GroupBand, Loading } from "@/components/ui";
+import { parseDate } from "@/lib/dates";
 
 const NEXT: Record<string, string> = {
   draft: "confirmed",
@@ -74,7 +75,7 @@ export default function OrderDetailScreen() {
               {order.status.toUpperCase()}
             </Text>
             <Text className="font-mono text-[10px] tracking-[1.4px] text-ink-3">
-              {new Date(order.created_at).toLocaleDateString("en-IN", {
+              {parseDate(order.created_at).toLocaleDateString("en-IN", {
                 day: "numeric", month: "short", year: "numeric",
               }).toUpperCase()}
             </Text>

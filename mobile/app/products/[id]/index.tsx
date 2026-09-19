@@ -9,7 +9,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Svg, { Path, Rect } from "react-native-svg";
 import { api } from "@/lib/api";
 import { C, TNUM, money } from "@/lib/theme";
-import { GroupBand, Loading } from "@/components/ui";
+import { GroupBand, Loading, SheetView } from "@/components/ui";
+import { parseDate } from "@/lib/dates";
 
 const MOVE_TYPES = [
   { key: "in",         label: "IN",     full: "Stock in",    color: C.accent },
@@ -40,6 +41,13 @@ export default function ProductDetailScreen() {
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["product", id],
     queryFn: () => api.getProduct(id!),
+    enabled: !!id,
+  });
+  // GET /products/:id carries no movements; the ledger comes from history.
+  // Keyed under ["product", id] so recording a movement refreshes it too.
+  const { data: history } = useQuery({
+    queryKey: ["product", id, "history"],
+    queryFn: () => api.stockHistory(id!),
     enabled: !!id,
   });
 
@@ -87,7 +95,7 @@ export default function ProductDetailScreen() {
 
   const p = data.product;
   const stock = data.stock;
-  const movements = data.movements ?? [];
+  const movements = history ?? [];
 
   const inStock = stock?.boxes_in_stock ?? 0;
   const level = inStock === 0 ? "out" : inStock <= p.reorder_level ? "low" : "ok";
@@ -279,7 +287,7 @@ export default function ProductDetailScreen() {
                     >
                       {m.reason
                         ? m.reason
-                        : new Date(m.created_at).toLocaleDateString("en-IN", {
+                        : parseDate(m.created_at).toLocaleDateString("en-IN", {
                             day: "numeric",
                             month: "short",
                             hour: "2-digit",
@@ -343,9 +351,10 @@ export default function ProductDetailScreen() {
         presentationStyle="pageSheet"
         onRequestClose={closeSheet}
       >
+        <SheetView>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
-          className="flex-1 bg-bg"
+          className="flex-1"
         >
           {/* Sheet header */}
           <View className="flex-row items-center justify-between border-b border-rule px-[22px] py-4">
@@ -505,6 +514,7 @@ export default function ProductDetailScreen() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+        </SheetView>
       </Modal>
     </>
   );

@@ -1,8 +1,8 @@
 import { ReactNode } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, ActivityIndicator, Platform,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { C, TNUM } from "@/lib/theme";
 
@@ -16,6 +16,23 @@ export function Screen({ children, inset = false }: { children: ReactNode; inset
       {children}
     </View>
   );
+}
+
+/** Root of a Modal sheet. A Modal is its own window, so the app's safe-area
+ *  context doesn't reach it; on Android (always edge-to-edge) that put sheet
+ *  headers under the status bar. iOS page sheets already sit below it. */
+export function SheetView({ children }: { children: ReactNode }) {
+  return (
+    <SafeAreaProvider>
+      <SheetInset>{children}</SheetInset>
+    </SafeAreaProvider>
+  );
+}
+
+function SheetInset({ children }: { children: ReactNode }) {
+  const insets = useSafeAreaInsets();
+  const pad = Platform.OS === "android" ? { paddingTop: insets.top, paddingBottom: insets.bottom } : undefined;
+  return <View className="flex-1 bg-bg" style={pad}>{children}</View>;
 }
 
 /** Mono uppercase rule at the top of a tab screen — left title, right status. */

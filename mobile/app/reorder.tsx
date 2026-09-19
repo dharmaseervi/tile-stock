@@ -9,7 +9,7 @@ import { useRouter } from "expo-router";
 import Svg, { Path, Rect, Circle } from "react-native-svg";
 import { api } from "@/lib/api";
 import { C, TNUM, money } from "@/lib/theme";
-import { GroupBand, Loading, Empty } from "@/components/ui";
+import { GroupBand, Loading, Empty, SheetView } from "@/components/ui";
 
 type Suggestion = {
   product_id: string;
@@ -395,7 +395,7 @@ export default function ReorderScreen() {
       {/* ── Full catalogue picker ── */}
       <Modal visible={picking} animationType="slide" presentationStyle="pageSheet"
         onRequestClose={() => { setPicking(false); setSearch(""); }}>
-        <View className="flex-1 bg-bg">
+        <SheetView>
           <View className="border-b border-rule px-[22px] py-4">
             <View className="mb-3 flex-row items-center justify-between">
               <Text className="font-mono text-[11px] tracking-[1.4px] text-ink">ADD FROM CATALOGUE</Text>
@@ -461,7 +461,7 @@ export default function ReorderScreen() {
               <Empty title="No match" body={`Nothing matches "${search}".`} />
             }
           />
-        </View>
+        </SheetView>
       </Modal>
     </View>
   );

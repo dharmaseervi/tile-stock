@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { api } from "@/lib/api";
 import { C, TNUM, money } from "@/lib/theme";
-import { Eyebrow, Empty } from "@/components/ui";
+import { Eyebrow, Empty, SheetView } from "@/components/ui";
 
 type Product = {
   id: string; brand: string; series_name: string;
@@ -265,7 +265,7 @@ export default function NewChallanScreen() {
 
       {/* Catalogue picker */}
       <Modal visible={picking} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPicking(false)}>
-        <View className="flex-1 bg-bg">
+        <SheetView>
           <View className="border-b border-rule px-[22px] py-4">
             <View className="mb-3 flex-row items-center justify-between">
               <Text className="font-mono text-[11px] tracking-[1.4px] text-ink">ADD FROM CATALOGUE</Text>
@@ -314,7 +314,7 @@ export default function NewChallanScreen() {
               <Empty title="No match" body={`Nothing matches “${search}”.`} />
             }
           />
-        </View>
+        </SheetView>
       </Modal>
     </View>
   );

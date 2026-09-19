@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,7 +21,9 @@ type orderItemInput struct {
 }
 
 type createOrderReq struct {
-	CustomerID      string           `json:"customer_id"`
+	CustomerID string `json:"customer_id"`
+	// CustomerName is what the mobile app sends: a typed name, not a picked record.
+	CustomerName    string           `json:"customer_name"`
 	BranchID        string           `json:"branch_id"`
 	DeliveryAddress string           `json:"delivery_address"`
 	Notes           string           `json:"notes"`
@@ -51,6 +54,20 @@ func (h *OrderHandler) Create(c *gin.Context) {
 	var customerID, branchID interface{}
 	if req.CustomerID != "" {
 		customerID = req.CustomerID
+	} else if name := strings.TrimSpace(req.CustomerName); name != "" {
+		// Reuse the shop's customer with this name, or start one, so the
+		// challan lands in that customer's ledger instead of being dropped.
+		var id string
+		err := tx.Get(&id, `SELECT id FROM customers WHERE org_id=$1 AND lower(name)=lower($2) ORDER BY created_at LIMIT 1`, orgID, name)
+		if err != nil {
+			id = uuid.NewString()
+			if _, err := tx.Exec(`INSERT INTO customers (id, org_id, name) VALUES ($1,$2,$3)`, id, orgID, name); err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save customer"})
+				return
+			}
+		}
+		customerID = id
 	}
 	if req.BranchID != "" {
 		branchID = req.BranchID

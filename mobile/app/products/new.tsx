@@ -9,7 +9,7 @@ import Svg, { Path } from "react-native-svg";
 import { api } from "@/lib/api";
 
 import { TILE_SIZES, calcSqftPerBox } from "@/lib/tileSizes";
-import { Eyebrow, Field, Segments } from "@/components/ui";
+import { Eyebrow, Field, Segments, SheetView } from "@/components/ui";
 import { C, TNUM } from "@/lib/theme";
 import { PhotoField } from "@/components/PhotoField";
 import { uploadProductPhoto } from "@/lib/superbase";
@@ -282,7 +282,7 @@ export default function NewProductScreen() {
 
             {/* Size picker */}
             <Modal visible={sizeOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSizeOpen(false)}>
-                <View className="flex-1 bg-bg">
+                <SheetView>
                     <View className="flex-row items-center justify-between border-b border-rule px-[22px] py-4">
                         <Text className="font-mono text-[11px] tracking-[1.4px] text-ink">SELECT SIZE</Text>
                         <TouchableOpacity onPress={() => setSizeOpen(false)} hitSlop={10}>
@@ -306,7 +306,7 @@ export default function NewProductScreen() {
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
-                </View>
+                </SheetView>
             </Modal>
         </KeyboardAvoidingView>
     );

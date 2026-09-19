@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { SheetView } from "@/components/ui";
 import { C, TNUM } from "@/lib/theme";
 
 const TYPES = [
@@ -177,7 +178,7 @@ export default function ScanScreen() {
 
       {/* ── Entry sheet ─────────────────────────────────── */}
       <Modal visible={!!product} animationType="slide" presentationStyle="pageSheet" onRequestClose={reset}>
-        <View className="flex-1 bg-bg">
+        <SheetView>
           {product && (
             <>
               <View className="border-b border-rule px-[22px] pb-4 pt-5">
@@ -318,7 +319,7 @@ export default function ScanScreen() {
               </View>
             </>
           )}
-        </View>
+        </SheetView>
       </Modal>
     </View>
   );

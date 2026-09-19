@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { C, TNUM } from "@/lib/theme";
 import { Empty } from "@/components/ui";
+import { parseDate } from "@/lib/dates";
 
 const TONE: Record<string, string> = {
   in: C.accent,
@@ -24,7 +25,7 @@ export default function ActivityScreen() {
   const sections = useMemo(() => {
     const byDay = new Map<string, any[]>();
     rows.forEach((m: any) => {
-      const d = new Date(m.created_at)
+      const d = parseDate(m.created_at)
         .toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
         .toUpperCase();
       if (!byDay.has(d)) byDay.set(d, []);

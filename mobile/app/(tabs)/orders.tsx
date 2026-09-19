@@ -6,6 +6,7 @@ import Svg, { Path } from "react-native-svg";
 import { api } from "@/lib/api";
 import { C, TNUM, money } from "@/lib/theme";
 import { Screen, Masthead, GroupBand, Empty, Loading, Segments } from "@/components/ui";
+import { parseDate } from "@/lib/dates";
 
 type Order = {
   id: string;
@@ -54,7 +55,7 @@ export default function OrdersScreen() {
     // Grouped by day — a challan book reads chronologically.
     const byDay = new Map<string, Order[]>();
     visible.forEach((o) => {
-      const d = new Date(o.created_at).toLocaleDateString("en-IN", {
+      const d = parseDate(o.created_at).toLocaleDateString("en-IN", {
         day: "numeric", month: "short", year: "numeric",
       }).toUpperCase();
       if (!byDay.has(d)) byDay.set(d, []);

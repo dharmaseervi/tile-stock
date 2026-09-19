@@ -35,16 +35,31 @@ export async function clearToken() {
   await SecureStore.deleteItemAsync("token");
 }
 
+// Long enough for Render's free tier to wake (~50s), short enough that a
+// stalled connection surfaces as an error instead of an endless spinner.
+const REQUEST_TIMEOUT_MS = 75_000;
+
 async function request(path: string, options?: RequestInit) {
   const token = await getToken();
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers || {}),
-    },
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options?.headers || {}),
+      },
+    });
+  } catch (e: any) {
+    if (e?.name === "AbortError") throw new Error("The server took too long to respond. Check your connection and try again.");
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 
   // 401 must be checked BEFORE the generic !res.ok block
   if (res.status === 401) {
