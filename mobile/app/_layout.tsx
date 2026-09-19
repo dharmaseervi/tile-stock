@@ -66,6 +66,12 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [token, ready, segments]);
 
+  // Signed out: drop every cached query so the next account on this phone
+  // never sees the previous shop's stock, customers or name.
+  useEffect(() => {
+    if (ready && !token) queryClient.clear();
+  }, [token, ready]);
+
   // Check expiry when app comes back to foreground
   useEffect(() => {
     const sub = AppState.addEventListener("change", async (next) => {

@@ -21,9 +21,6 @@ const INK = "#F3EFE7";
 const INK_OUT = "#B8AFA3";
 const MUTED = "#9E968A";
 
-/* TODO: no endpoint returns the org name — signup accepts it but nothing
-   reads it back. Add GET /org and swap this out. */
-const SHOP_NAME = "Shree Balaji Tiles";
 
 type StockRow = {
   product_id: string;
@@ -64,6 +61,8 @@ export default function DashboardScreen() {
   const [search, setSearch] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
 
+  // The shop name rarely changes; cache it for the session.
+  const { data: org } = useQuery({ queryKey: ["org"], queryFn: api.getOrg, staleTime: Infinity });
   const { data, isLoading, isFetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["stock"],
     queryFn: api.currentStock,
@@ -129,7 +128,7 @@ export default function DashboardScreen() {
       <View className="px-[22px]" style={{ paddingTop: insets.top + 10 }}>
         <View className="flex-row items-baseline justify-between">
           <Text className="font-mono text-[10px] tracking-[1.4px] text-ink-3">
-            {SHOP_NAME.toUpperCase()}
+            {(org?.name ?? "").toUpperCase()}
           </Text>
           <Text className="font-mono text-[10px] tracking-[1.4px] text-ink-3">
             {today()} · {syncedLabel(dataUpdatedAt)}

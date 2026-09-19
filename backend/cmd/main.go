@@ -146,6 +146,7 @@ func main() {
 			authed.GET("/reorder/suggestions", h.reorder.Suggestions)
 
 			// Subscription
+			authed.GET("/org", h.org.Get)
 			authed.GET("/subscription", h.subscription.Get)
 			authed.POST("/subscription/order", middleware.OwnerOnly(), h.subscription.CreateOrder)
 
@@ -173,6 +174,7 @@ type allHandlers struct {
 	orders       *handlers.OrderHandler
 	suppliers    *handlers.SupplierHandler
 	subscription *handlers.SubscriptionHandler
+	org          *handlers.OrgHandler
 	reorder      *handlers.ReorderHandler
 	public       *handlers.PublicHandler
 	pdf          *handlers.PDFHandler
@@ -191,6 +193,7 @@ func buildHandlers(dbx *sqlx.DB) allHandlers {
 		orders:       &handlers.OrderHandler{DB: dbx},
 		suppliers:    &handlers.SupplierHandler{DB: dbx},
 		subscription: &handlers.SubscriptionHandler{DB: dbx},
+		org:          &handlers.OrgHandler{DB: dbx},
 		reorder:      &handlers.ReorderHandler{DB: dbx},
 		public:       &handlers.PublicHandler{DB: dbx},
 		pdf:          &handlers.PDFHandler{DB: dbx},

@@ -21,7 +21,7 @@ function devHost() {
 
 export const API_URL = USE_LOCAL
   ? `http://${devHost()}:8080/api`
-  : "https://tile-stock.onrender.com/api"; // TODO: change to production URL when deploying
+  : "https://tile-stock.onrender.com/api";
 
 export async function getToken() {
   return await SecureStore.getItemAsync("token");
@@ -98,6 +98,7 @@ login: (email: string, password: string) =>
   // Products
   listProducts: () => request("/products"),
   getProduct: (id: string) => request(`/products/${id}`),
+  getOrg: (): Promise<{ id: string; name: string }> => request("/org"),
   createProduct: (data: any) =>
     request("/products", { method: "POST", body: JSON.stringify(data) }),
   updateProduct: (id: string, data: any) =>
