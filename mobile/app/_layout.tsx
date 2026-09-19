@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Stack, useRouter, useSegments, useNavigation } from "expo-router";
 import { AppState, TouchableOpacity, View } from "react-native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Svg, { Path } from "react-native-svg";
 import {
@@ -18,7 +18,7 @@ import { useAuth } from "@/store/auth";
 import { C } from "@/lib/theme";
 // @ts-ignore: global CSS import for nativewind
 import "../global.css";
-import { clearToken, getToken, setUnauthorizedHandler } from "@/lib/api";
+import { api, clearToken, getToken, setUnauthorizedHandler } from "@/lib/api";
 import { jwtDecode } from "jwt-decode";
 
 const queryClient = new QueryClient({
@@ -52,10 +52,19 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { init(); }, []);
 
+  // Shops that haven't finished onboarding go to setup before anything else.
+  const { data: org } = useQuery({
+    queryKey: ["org"], queryFn: api.getOrg, enabled: ready && !!token, staleTime: Infinity,
+  });
+
   // Existing redirect logic
   useEffect(() => {
     if (!ready) return;
     const group = segments[0];
+    if (token && org && !org.setup_complete && group !== "setup") {
+      router.replace("/setup");
+      return;
+    }
     const inAuth = group === "(auth)";
     const inApp = group === "(tabs)";
 
@@ -64,7 +73,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     } else if (token && !inApp && (inAuth || group === undefined)) {
       router.replace("/(tabs)/dashboard");
     }
-  }, [token, ready, segments]);
+  }, [token, ready, segments, org]);
 
   // Signed out: drop every cached query so the next account on this phone
   // never sees the previous shop's stock, customers or name.
@@ -147,6 +156,7 @@ export default function RootLayout() {
             <Stack.Screen name="reorder" options={{ headerShown: true, title: "REORDER" }} />
             <Stack.Screen name="activity" options={{ headerShown: true, title: "ACTIVITY" }} />
             <Stack.Screen name="settings" options={{ headerShown: true, title: "SETTINGS" }} />
+            <Stack.Screen name="setup" options={{ headerShown: true, title: "SHOP DETAILS" }} />
           </Stack>
         </AuthGate>
       </QueryClientProvider>

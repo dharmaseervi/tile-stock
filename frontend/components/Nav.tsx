@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -8,7 +8,7 @@ import {
   BarChart2, FileText, Users, RefreshCw, Settings,
   Activity, ScanLine,
 } from "lucide-react";
-import { clearToken } from "@/lib/api";
+import { api, clearToken } from "@/lib/api";
 
 const primary = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -32,6 +32,14 @@ export default function Nav() {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+
+  // Every signed-in page renders Nav, so this is the one place that sends a
+  // shop which hasn't finished onboarding to /setup.
+  useEffect(() => {
+    api.getOrg()
+      .then((org) => { if (!org.setup_complete) router.replace("/setup"); })
+      .catch(() => {});
+  }, []);
 
   function logout() {
     clearToken();

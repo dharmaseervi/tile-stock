@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,20 +22,65 @@ func newPDF() *gofpdf.Fpdf {
 	return pdf
 }
 
-func drawHeader(pdf *gofpdf.Fpdf, orgName string) {
+func drawHeader(pdf *gofpdf.Fpdf, org OrgProfile) {
 	pdf.SetFont("Arial", "B", 16)
 	pdf.SetTextColor(31, 111, 107) // --color-glaze
 	pdf.CellFormat(0, 10, "PERFORMA REPORT", "", 1, "L", false, 0, "")
 
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetTextColor(30, 36, 34) // --color-ink
+	pdf.CellFormat(0, 5, org.Name, "", 1, "L", false, 0, "")
 	pdf.SetFont("Arial", "", 9)
 	pdf.SetTextColor(82, 96, 91) // --color-ink-soft
-	pdf.CellFormat(0, 5, orgName, "", 1, "L", false, 0, "")
+	for _, line := range orgHeaderLines(org) {
+		pdf.CellFormat(0, 4.5, line, "", 1, "L", false, 0, "")
+	}
 	pdf.Ln(3)
 
 	// Separator
 	pdf.SetDrawColor(220, 223, 217)
 	pdf.Line(15, pdf.GetY(), 195, pdf.GetY())
 	pdf.Ln(4)
+}
+
+// orgHeaderLines is the letterhead under the shop name: legal name,
+// address, then phone / email / GSTIN — skipping whatever isn't filled in.
+func orgHeaderLines(org OrgProfile) []string {
+	val := func(p *string) string {
+		if p == nil {
+			return ""
+		}
+		return strings.TrimSpace(*p)
+	}
+	join := func(sep string, parts ...string) string {
+		var out []string
+		for _, s := range parts {
+			if s != "" {
+				out = append(out, s)
+			}
+		}
+		return strings.Join(out, sep)
+	}
+	var lines []string
+	if ln := val(org.LegalName); ln != "" && ln != org.Name {
+		lines = append(lines, ln)
+	}
+	if a := join(", ", val(org.Address), val(org.City), join(" - ", val(org.State), val(org.Pincode))); a != "" {
+		lines = append(lines, a)
+	}
+	contact := join("  |  ",
+		prefixed("Ph: ", val(org.Phone)), val(org.Email), prefixed("GSTIN: ", val(org.GSTIN)))
+	if contact != "" {
+		lines = append(lines, contact)
+	}
+	return lines
+}
+
+func prefixed(prefix, s string) string {
+	if s == "" {
+		return ""
+	}
+	return prefix + s
 }
 
 func drawInfoBox(pdf *gofpdf.Fpdf, challanNum, date, customerName, city, address string) {
@@ -113,8 +159,8 @@ func (h *PDFHandler) OrderPDF(c *gin.Context) {
 	orderID := c.Param("id")
 
 	// Fetch org name
-	var orgName string
-	h.DB.Get(&orgName, `SELECT name FROM orgs WHERE id=$1`, orgID)
+	org, _ := loadOrgProfile(h.DB, orgID)
+	orgName := org.Name
 
 	// Fetch order
 	var order struct {
@@ -162,7 +208,7 @@ func (h *PDFHandler) OrderPDF(c *gin.Context) {
 	pdf := newPDF()
 	pdf.AddPage()
 
-	drawHeader(pdf, orgName)
+	drawHeader(pdf, org)
 
 	customerName := "—"
 	if order.CustomerName != nil {
@@ -275,8 +321,8 @@ type poReq struct {
 func (h *PDFHandler) PurchaseOrderPDF(c *gin.Context) {
 	orgID := c.GetString("org_id")
 
-	var orgName string
-	h.DB.Get(&orgName, `SELECT name FROM orgs WHERE id=$1`, orgID)
+	org, _ := loadOrgProfile(h.DB, orgID)
+	orgName := org.Name
 
 	var req poReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -335,7 +381,7 @@ func (h *PDFHandler) PurchaseOrderPDF(c *gin.Context) {
 
 	pdf := newPDF()
 	pdf.AddPage()
-	drawHeader(pdf, orgName)
+	drawHeader(pdf, org)
 
 	// PO info box
 	pdf.SetFillColor(247, 248, 246)
@@ -457,8 +503,8 @@ func (h *PDFHandler) PurchaseOrderPDF(c *gin.Context) {
 func (h *PDFHandler) StockReportPDF(c *gin.Context) {
 	orgID := c.GetString("org_id")
 
-	var orgName string
-	h.DB.Get(&orgName, `SELECT name FROM orgs WHERE id=$1`, orgID)
+	org, _ := loadOrgProfile(h.DB, orgID)
+	orgName := org.Name
 
 	var rows []struct {
 		Brand        string  `db:"brand"`
@@ -479,7 +525,7 @@ func (h *PDFHandler) StockReportPDF(c *gin.Context) {
 
 	pdf := newPDF()
 	pdf.AddPage()
-	drawHeader(pdf, orgName)
+	drawHeader(pdf, org)
 
 	// Report title + date
 	pdf.SetFont("Arial", "B", 11)

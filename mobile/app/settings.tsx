@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, Alert, Share, Linking } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import Svg, { Path } from "react-native-svg";
+import { useRouter } from "expo-router";
 import { api } from "@/lib/api";
 import { useAuth } from "@/store/auth";
 import { C, TNUM } from "@/lib/theme";
@@ -8,6 +9,7 @@ import { GroupBand, Loading } from "@/components/ui";
 import { WEB_URL, priceListUrl } from "@/lib/web";
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const { logout } = useAuth();
 
   const { data: suppliers, isLoading } = useQuery({
@@ -43,6 +45,20 @@ export default function SettingsScreen() {
         </Text>
       </View>
 
+      <GroupBand left="YOUR SHOP" />
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => router.push("/setup")}
+        className="flex-row items-center gap-3 border-t border-hairline px-[22px] py-3.5"
+      >
+        <View className="min-w-0 flex-1">
+          <Text className="font-sans-m text-[15px] text-ink">Shop details</Text>
+          <Text className="mt-1 font-sans text-[12px] text-ink-3">Name, address, GSTIN and phone on your challans</Text>
+        </View>
+        <Text className="font-mono text-[14px] text-ink-4">›</Text>
+      </TouchableOpacity>
+
+      <View className="mt-8" />
       <GroupBand left="MANAGE ON WEB" />
       {webItems.map((it) => (
         <TouchableOpacity

@@ -6,7 +6,6 @@ import { api, setToken } from "@/lib/api";
 
 export default function SignupPage() {
   const router = useRouter();
-  const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -17,9 +16,9 @@ export default function SignupPage() {
     setError("");
     setLoading(true);
     try {
-      const { token } = await api.signup({ org_name: orgName, email, password });
+      const { token } = await api.signup({ email, password });
       setToken(token);
-      router.push("/dashboard");
+      router.push("/setup");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -42,15 +41,6 @@ export default function SignupPage() {
           </p>
         </div>
         {error && <p className="text-sm" style={{ color: "var(--color-oxide)" }}>{error}</p>}
-        <input
-          type="text"
-          placeholder="Business / shop name"
-          value={orgName}
-          onChange={(e) => setOrgName(e.target.value)}
-          className="w-full rounded-md px-3 py-2 text-sm grout-border outline-none focus:ring-2"
-          style={{ ["--tw-ring-color" as any]: "var(--color-glaze)" }}
-          required
-        />
         <input
           type="email"
           placeholder="Email"

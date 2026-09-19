@@ -99,6 +99,17 @@ export default function SettingsPage() {
       <main className="p-4 sm:p-6 max-w-2xl mx-auto space-y-5 pb-10">
         <h1 className="font-[family-name:var(--font-display)] text-2xl" style={{ color: "var(--color-ink)" }}>Settings</h1>
 
+        <a href="/setup" className="flex items-center justify-between bg-white rounded-xl grout-border p-4 hover:bg-[var(--color-kiln-dim)] transition-colors">
+          <span className="flex items-center gap-3">
+            <Store size={18} style={{ color: "var(--color-glaze)" }} />
+            <span>
+              <span className="block text-sm font-medium" style={{ color: "var(--color-ink)" }}>Shop details</span>
+              <span className="block text-xs" style={{ color: "var(--color-ink-soft)" }}>Name, address, GSTIN and phone on your challans</span>
+            </span>
+          </span>
+          <span style={{ color: "var(--color-ink-soft)" }}>›</span>
+        </a>
+
         {/* Subscription */}
         <Section title="Subscription" icon={IndianRupee}>
           {subscription ? (

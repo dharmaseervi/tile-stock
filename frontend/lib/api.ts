@@ -22,6 +22,21 @@ async function request(path: string, options: RequestInit = {}) {
   return res.json();
 }
 
+export type OrgDetails = {
+  name: string;
+  legal_name: string;
+  gstin: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+};
+export type OrgProfile = { id: string; setup_complete: boolean } & {
+  [K in keyof OrgDetails]: K extends "name" ? string : string | null;
+};
+
 export const api = {
   // PDF downloads
   downloadOrderPDF: (id: string) => {
@@ -54,7 +69,8 @@ export const api = {
   },
 
   // Auth
-  signup: (data: { org_name: string; email: string; password: string }) =>
+  // Shop details are collected after signup, on /setup.
+  signup: (data: { email: string; password: string }) =>
     request("/auth/signup", { method: "POST", body: JSON.stringify(data) }),
   login: (data: { email: string; password: string }) =>
     request("/auth/login", { method: "POST", body: JSON.stringify(data) }),
@@ -157,6 +173,11 @@ export const api = {
 
   // Subscription & reorder
   getSubscription: () => request("/subscription"),
+
+  // Shop / company details
+  getOrg: (): Promise<OrgProfile> => request("/org"),
+  updateOrg: (data: OrgDetails): Promise<OrgProfile> =>
+    request("/org", { method: "PUT", body: JSON.stringify(data) }),
   reorderSuggestions: () => request("/reorder/suggestions"),
 
   // Public price list

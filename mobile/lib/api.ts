@@ -79,26 +79,41 @@ async function request(path: string, options?: RequestInit) {
   return res.json();
 }
 
+export type OrgDetails = {
+  name: string;
+  legal_name: string;
+  gstin: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+};
+export type OrgProfile = { id: string; setup_complete: boolean } & {
+  [K in keyof OrgDetails]: K extends "name" ? string : string | null;
+};
+
 export const api = {
   // Auth
-login: (email: string, password: string) =>
-  request("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  }).then((data) => {
-    console.log("TOKEN:", data?.token);
-    return data;
-  }),
-  signup: (orgName: string, email: string, password: string) =>
+  login: (email: string, password: string) =>
+    request("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  // Shop details are collected after signup, on the setup screen.
+  signup: (email: string, password: string) =>
     request("/auth/signup", {
       method: "POST",
-      body: JSON.stringify({ org_name: orgName, email, password }),
+      body: JSON.stringify({ email, password }),
     }),
   logout: () => request("/auth/logout", { method: "POST" }),
   // Products
   listProducts: () => request("/products"),
   getProduct: (id: string) => request(`/products/${id}`),
-  getOrg: (): Promise<{ id: string; name: string }> => request("/org"),
+  getOrg: (): Promise<OrgProfile> => request("/org"),
+  updateOrg: (data: OrgDetails): Promise<OrgProfile> =>
+    request("/org", { method: "PUT", body: JSON.stringify(data) }),
   createProduct: (data: any) =>
     request("/products", { method: "POST", body: JSON.stringify(data) }),
   updateProduct: (id: string, data: any) =>

@@ -34,7 +34,8 @@ func (h *AuthHandler) createSession(userID, orgID, token string) error {
 }
 
 type signupReq struct {
-	OrgName  string `json:"org_name" binding:"required"`
+	// Optional: shop details are collected after signup (PUT /org).
+	OrgName  string `json:"org_name"`
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=8"`
 }
@@ -55,7 +56,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 
 	tx := h.DB.MustBegin()
 	orgID := uuid.NewString()
-	tx.MustExec(`INSERT INTO orgs (id, name) VALUES ($1, $2)`, orgID, req.OrgName)
+	tx.MustExec(`INSERT INTO orgs (id, name) VALUES ($1, $2)`, orgID, strings.TrimSpace(req.OrgName))
 
 	userID := uuid.NewString()
 	_, err = tx.Exec(

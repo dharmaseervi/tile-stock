@@ -14,15 +14,14 @@ export default function SignupScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
-  const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSignup() {
-    if (!orgName.trim() || !email.trim() || !password) {
-      setError("FILL IN ALL THREE FIELDS");
+    if (!email.trim() || !password) {
+      setError("ENTER YOUR EMAIL AND A PASSWORD");
       return;
     }
     if (password.length < 8) {
@@ -32,9 +31,10 @@ export default function SignupScreen() {
     setBusy(true);
     setError("");
     try {
-      const data = await api.signup(orgName.trim(), email.trim().toLowerCase(), password);
+      const data = await api.signup(email.trim().toLowerCase(), password);
       await login(data.token);
-      router.replace("/(tabs)/dashboard");
+      // Shop details come next; the auth gate also sends unfinished shops here.
+      router.replace("/setup");
     } catch (err: any) {
       setError((err.message || "COULDN'T CREATE ACCOUNT").toUpperCase());
     } finally {
@@ -43,7 +43,6 @@ export default function SignupScreen() {
   }
 
   const fields = [
-    { label: "SHOP NAME", value: orgName, set: setOrgName, ph: "Shree Balaji Tiles", secure: false, kb: "default" as const, caps: "words" as const },
     { label: "EMAIL", value: email, set: setEmail, ph: "you@shop.com", secure: false, kb: "email-address" as const, caps: "none" as const },
     { label: "PASSWORD", value: password, set: setPassword, ph: "At least 8 characters", secure: true, kb: "default" as const, caps: "none" as const },
   ];

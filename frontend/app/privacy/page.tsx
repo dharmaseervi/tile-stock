@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 const CONTACT = "dharmaseervijb18239@gmail.com";
-const UPDATED = "16 September 2026";
+const UPDATED = "19 September 2026";
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
@@ -113,10 +113,12 @@ export default function PrivacyPage() {
         </nav>
 
         <Section id="collect" title="1. Information we collect">
-          <p><B>Account information.</B>{" "}When a dealer signs up we collect the shop name, an email address and a
-            password. Passwords are stored only as a one-way hash; we cannot read them. When an owner invites staff,
+          <p><B>Account information.</B>{" "}When a dealer signs up we collect an email address and a password. Passwords are stored only as a one-way hash; we cannot read them. When an owner invites staff,
             we store the staff member&rsquo;s email address and role (owner or staff) and create an invite link for
             the owner to share with them.</p>
+          <p><B>Shop details.</B>{" "}After signing up, the owner enters the shop&rsquo;s details: shop name, registered
+            company name, GSTIN, phone, business email and address. We show these in the app and print them on your
+            challans and reports.</p>
           <p><B>Business records you enter.</B>{" "}Everything you add to run your shop:</p>
           <List>
             <li>Products and designs: name, brand, size, finish, category, prices, godown location and shade/lot numbers.</li>

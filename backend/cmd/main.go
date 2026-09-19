@@ -147,6 +147,7 @@ func main() {
 
 			// Subscription
 			authed.GET("/org", h.org.Get)
+			authed.PUT("/org", middleware.OwnerOnly(), h.org.Update)
 			authed.GET("/subscription", h.subscription.Get)
 			authed.POST("/subscription/order", middleware.OwnerOnly(), h.subscription.CreateOrder)
 
